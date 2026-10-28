@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .cockpit-panel {
+    background-color: #0b0d11;
+  }
+  .telemetry-well {
+    background-color: #07080a;
+  }
+  .btn-cockpit-action {
+    background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+    color: #ffffff;
+    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.4);
+    transition: all 0.2s ease-in-out;
+  }
+  .btn-cockpit-action:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff6363 0%, #e11d48 100%);
+    box-shadow: 0 15px 30px -5px rgba(225, 29, 72, 0.6);
+  }
+}
