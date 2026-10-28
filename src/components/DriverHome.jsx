@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useFleet } from './FleetContext';
+import { usePWA } from '../context/PWAContext';
 import {
   Truck,
   Gauge,
@@ -19,7 +20,8 @@ import {
   Settings,
   ExternalLink,
   Plus,
-  Check
+  Check,
+  Download
 } from 'lucide-react';
 import SemaforoBadge from './SemaforoBadge';
 
@@ -40,6 +42,8 @@ export default function DriverHome() {
     setSelectedVehiclePlaca,
     selectedVehicle,
   } = useFleet();
+
+  const { isInstalled, openInstallPromptManual } = usePWA();
 
   const fallbackVehicle = {
     placa: 'W4E-892',
@@ -139,6 +143,17 @@ export default function DriverHome() {
           </div>
 
           <div className="flex items-center gap-2">
+            {!isInstalled && (
+              <button
+                type="button"
+                onClick={openInstallPromptManual}
+                className="px-2.5 py-1 rounded-full telemetry-well border border-[#ff6363]/40 text-[#ff6363] hover:text-white transition-colors cursor-pointer text-[10px] font-mono font-bold flex items-center gap-1 shadow-sm"
+                title="Instalar App en tu celular"
+              >
+                <Download className="w-3 h-3" />
+                <span>Instalar</span>
+              </button>
+            )}
             <span className="text-[11px] text-[#8e939e] flex items-center gap-1.5 font-mono">
               <Calendar className="w-3.5 h-3.5 text-[#ff6363]" />
               {new Date().toLocaleDateString('es-PE', {
