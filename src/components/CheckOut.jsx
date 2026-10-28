@@ -30,10 +30,20 @@ export default function CheckOut() {
     selectedVehicle,
   } = useFleet();
 
-  const assignedVehicle = selectedVehicle || vehicles.find((v) => v.placa === selectedVehiclePlaca) || vehicles[0];
-  const ultimoRegistro = bitacora.find((b) => b.placa === assignedVehicle.placa);
+  const fallbackVehicle = {
+    placa: 'W4E-892',
+    marca: 'Toyota',
+    modelo: 'Hilux 4x4',
+    tipo: 'Camioneta Pick-up',
+    traccion: '4x4',
+    empresaAsignada: 'VIP CAR Huancayo',
+    odometroActual: 14750,
+    nivelCombustible: 75,
+  };
+  const assignedVehicle = selectedVehicle || (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) || (vehicles && vehicles[0]) || fallbackVehicle;
+  const ultimoRegistro = (bitacora || []).find((b) => b?.placa === assignedVehicle?.placa);
 
-  const [odometro, setOdometro] = useState(assignedVehicle.odometroActual + 65);
+  const [odometro, setOdometro] = useState((assignedVehicle?.odometroActual || 14750) + 65);
   const [combustible, setCombustible] = useState(65);
   const [novedades, setNovedades] = useState('');
   const [evaluacion, setEvaluacion] = useState('Óptimo');
@@ -48,18 +58,18 @@ export default function CheckOut() {
   // Manejador del Selector de Flota Dinámico en Check-out
   const handleVehicleChange = (newPlaca) => {
     setSelectedVehiclePlaca(newPlaca);
-    const target = vehicles.find((v) => v.placa === newPlaca);
+    const target = (vehicles || []).find((v) => v?.placa === newPlaca);
     if (target) {
-      const lastLog = bitacora.find((b) => b.placa === target.placa);
-      const baseOdo = lastLog?.odometro || target.odometroActual || 0;
+      const lastLog = (bitacora || []).find((b) => b?.placa === target?.placa);
+      const baseOdo = lastLog?.odometro || target?.odometroActual || 0;
       const odoEstimado = baseOdo + 45;
       const lastFuel = lastLog?.nivelCombustible
         ? parseInt(lastLog.nivelCombustible, 10)
-        : (target.nivelCombustible ?? 75);
+        : (target?.nivelCombustible ?? 75);
       const combEstimado = Math.max(15, lastFuel - 15);
       setOdometro(odoEstimado);
       setCombustible(combEstimado);
-      setAutoCompletadoMsg(`Unidad [${target.placa}] asignada: Cierre sugerido ${odoEstimado.toLocaleString()} km • ${combEstimado}%`);
+      setAutoCompletadoMsg(`Unidad [${target?.placa || newPlaca}] asignada: Cierre sugerido ${odoEstimado.toLocaleString()} km • ${combEstimado}%`);
       setTimeout(() => setAutoCompletadoMsg(null), 3500);
     }
   };
@@ -77,7 +87,7 @@ export default function CheckOut() {
   const [gpsStatus, setGpsStatus] = useState('idle'); // 'idle' | 'loading' | 'active' | 'denied' | 'fallback'
   const [gpsCoords, setGpsCoords] = useState(null);
 
-  const kmRecorridos = Math.max(0, Number(odometro) - assignedVehicle.odometroActual);
+  const kmRecorridos = Math.max(0, Number(odometro) - (assignedVehicle?.odometroActual || 0));
 
   // Validar GPS satelital
   const validarGPS = () => {
@@ -374,11 +384,11 @@ export default function CheckOut() {
           <div className="relative">
             <select
               id="select-flota-checkout"
-              value={assignedVehicle.placa}
+              value={assignedVehicle?.placa || ''}
               onChange={(e) => handleVehicleChange(e.target.value)}
               className="w-full bg-[#0a0c0e] border border-white/[0.15] rounded-2xl px-3.5 py-3 text-xs text-[#ffffff] font-mono font-semibold focus:outline-none focus:border-[#ff6363] transition-colors cursor-pointer appearance-none"
             >
-              {vehicles.map((v, idx) => (
+              {(vehicles || []).map((v, idx) => (
                 <option key={v.id || v.placa} value={v.placa} className="bg-[#0e1115] text-[#ffffff] py-2">
                   #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo} ({v.tipo})
                 </option>
@@ -396,21 +406,21 @@ export default function CheckOut() {
         <div className="w-full telemetry-well border border-white/[0.08] p-4 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
           <div className="space-y-1 min-w-0 flex-1">
             <div className="text-[10px] text-[#8e939e] uppercase font-mono font-bold">
-              {assignedVehicle.tipo} • {assignedVehicle.traccion || '4x4'}
+              {assignedVehicle?.tipo || 'Pickup 4x4'} • {assignedVehicle?.traccion || '4x4'}
             </div>
             <div className="text-sm sm:text-base font-black text-[#ffffff] font-sans whitespace-normal leading-snug">
-              {assignedVehicle.marca} {assignedVehicle.modelo}
+              {assignedVehicle?.marca || 'Toyota'} {assignedVehicle?.modelo || 'Hilux 4x4'}
             </div>
             <div className="text-[11px] text-cyan-400 font-mono">
-              {assignedVehicle.empresaAsignada || 'VIP CAR Huancayo'}
+              {assignedVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
             </div>
           </div>
           <div className="flex flex-col items-end shrink-0 pl-2">
             <span className="font-mono font-black text-sm sm:text-base text-[#ff6363] px-3.5 py-1 rounded-full telemetry-well border border-[#ff6363]/50 tracking-wider shadow-md">
-              {assignedVehicle.placa}
+              {assignedVehicle?.placa || 'W4E-892'}
             </span>
             <span className="text-[10px] text-[#8e939e] font-mono mt-1">
-              Base: {assignedVehicle.odometroActual.toLocaleString()} km
+              Base: {(assignedVehicle?.odometroActual ?? 0).toLocaleString()} km
             </span>
           </div>
         </div>
@@ -482,7 +492,7 @@ export default function CheckOut() {
               type="number"
               inputMode="numeric"
               required
-              min={assignedVehicle.odometroActual}
+              min={assignedVehicle?.odometroActual || 0}
               value={odometro}
               onChange={(e) => setOdometro(e.target.value)}
               className="w-full telemetry-well border border-white/[0.1] rounded-full px-4 py-3 text-2xl font-mono font-black text-[#ffffff] text-center tracking-widest focus:outline-none focus:border-[#ff6363]"

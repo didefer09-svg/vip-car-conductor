@@ -43,8 +43,18 @@ export default function CheckIn() {
     selectedVehicle,
   } = useFleet();
 
-  const assignedVehicle = selectedVehicle || vehicles.find((v) => v.placa === selectedVehiclePlaca) || vehicles[0];
-  const ultimoRegistro = bitacora.find((b) => b.placa === assignedVehicle.placa);
+  const fallbackVehicle = {
+    placa: 'W4E-892',
+    marca: 'Toyota',
+    modelo: 'Hilux 4x4',
+    tipo: 'Camioneta Pick-up',
+    traccion: '4x4',
+    empresaAsignada: 'VIP CAR Huancayo',
+    odometroActual: 14750,
+    nivelCombustible: 75,
+  };
+  const assignedVehicle = selectedVehicle || (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) || (vehicles && vehicles[0]) || fallbackVehicle;
+  const ultimoRegistro = (bitacora || []).find((b) => b?.placa === assignedVehicle?.placa);
 
   const [odometro, setOdometro] = useState(assignedVehicle?.odometroActual || 14750);
   const [combustible, setCombustible] = useState(assignedVehicle?.nivelCombustible || 75);
@@ -68,16 +78,16 @@ export default function CheckIn() {
   // Manejador del Selector de Flota Dinámico
   const handleVehicleChange = (newPlaca) => {
     setSelectedVehiclePlaca(newPlaca);
-    const target = vehicles.find((v) => v.placa === newPlaca);
+    const target = (vehicles || []).find((v) => v?.placa === newPlaca);
     if (target) {
-      const lastLog = bitacora.find((b) => b.placa === target.placa);
-      const targetOdo = lastLog?.odometro || target.odometroActual || 0;
+      const lastLog = (bitacora || []).find((b) => b?.placa === target?.placa);
+      const targetOdo = lastLog?.odometro || target?.odometroActual || 0;
       const targetFuel = lastLog?.nivelCombustible
         ? parseInt(lastLog.nivelCombustible, 10)
-        : (target.nivelCombustible ?? 75);
+        : (target?.nivelCombustible ?? 75);
       setOdometro(targetOdo);
       setCombustible(targetFuel);
-      setAutoCompletadoMsg(`Unidad [${target.placa}] asignada: ${targetOdo.toLocaleString()} km • ${targetFuel}%`);
+      setAutoCompletadoMsg(`Unidad [${target?.placa || newPlaca}] asignada: ${targetOdo.toLocaleString()} km • ${targetFuel}%`);
       setTimeout(() => setAutoCompletadoMsg(null), 3500);
     }
   };
@@ -421,11 +431,11 @@ export default function CheckIn() {
           <div className="relative">
             <select
               id="select-flota-checkin"
-              value={assignedVehicle.placa}
+              value={assignedVehicle?.placa || ''}
               onChange={(e) => handleVehicleChange(e.target.value)}
               className="w-full bg-[#0a0c0e] border border-white/[0.15] rounded-2xl px-3.5 py-3 text-xs text-[#ffffff] font-mono font-semibold focus:outline-none focus:border-[#ff6363] transition-colors cursor-pointer appearance-none"
             >
-              {vehicles.map((v, idx) => (
+              {(vehicles || []).map((v, idx) => (
                 <option key={v.id || v.placa} value={v.placa} className="bg-[#0e1115] text-[#ffffff] py-2">
                   #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo} ({v.tipo})
                 </option>
@@ -443,21 +453,21 @@ export default function CheckIn() {
         <div className="w-full telemetry-well border border-white/[0.08] p-4 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
           <div className="space-y-1 min-w-0 flex-1">
             <div className="text-[10px] text-[#8e939e] uppercase font-mono font-bold">
-              {assignedVehicle.tipo} • {assignedVehicle.traccion || '4x4'}
+              {assignedVehicle?.tipo || 'Pickup 4x4'} • {assignedVehicle?.traccion || '4x4'}
             </div>
             <div className="text-sm sm:text-base font-black text-[#ffffff] font-sans whitespace-normal leading-snug">
-              {assignedVehicle.marca} {assignedVehicle.modelo}
+              {assignedVehicle?.marca || 'Toyota'} {assignedVehicle?.modelo || 'Hilux 4x4'}
             </div>
             <div className="text-[11px] text-cyan-400 font-mono">
-              {assignedVehicle.empresaAsignada || 'VIP CAR Huancayo'}
+              {assignedVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
             </div>
           </div>
           <div className="flex flex-col items-end shrink-0 pl-2">
             <span className="font-mono font-black text-sm sm:text-base text-[#ff6363] px-3.5 py-1 rounded-full telemetry-well border border-[#ff6363]/50 tracking-wider shadow-md">
-              {assignedVehicle.placa}
+              {assignedVehicle?.placa || 'W4E-892'}
             </span>
             <span className="text-[10px] text-[#8e939e] font-mono mt-1">
-              Base: {assignedVehicle.odometroActual.toLocaleString()} km
+              Base: {(assignedVehicle?.odometroActual ?? 0).toLocaleString()} km
             </span>
           </div>
         </div>
@@ -579,7 +589,7 @@ export default function CheckIn() {
           </div>
 
           <div className="space-y-1.5 pt-1">
-            {PREOPERATIONAL_ITEMS.map((item) => {
+            {(PREOPERATIONAL_ITEMS || []).map((item) => {
               const isChecked = checklist[item.id];
               return (
                 <div

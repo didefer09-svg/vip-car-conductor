@@ -26,7 +26,14 @@ export default function ReportarAveria() {
     selectedVehicle,
   } = useFleet();
 
-  const assignedVehicle = selectedVehicle || vehicles.find((v) => v.placa === selectedVehiclePlaca) || vehicles[0];
+  const fallbackVehicle = {
+    placa: 'W4E-892',
+    marca: 'Toyota',
+    modelo: 'Hilux 4x4',
+    tipo: 'Camioneta Pick-up',
+    empresaAsignada: 'VIP CAR Huancayo',
+  };
+  const assignedVehicle = selectedVehicle || (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) || (vehicles && vehicles[0]) || fallbackVehicle;
 
   const [tipoFalla, setTipoFalla] = useState('Falla mecánica');
   const [severidad, setSeveridad] = useState('Grave');
@@ -306,17 +313,17 @@ export default function ReportarAveria() {
             <div className="text-[10px] text-[#ff6363] uppercase font-mono font-bold">Unidad Afectada // SOS</div>
           </div>
           <span className="font-mono font-bold text-xs text-[#ff6363] px-2.5 py-0.5 rounded-full telemetry-well border border-[#ff6363]/40">
-            {assignedVehicle.placa}
+            {assignedVehicle?.placa || 'W4E-892'}
           </span>
         </div>
 
         <div className="relative">
           <select
-            value={assignedVehicle.placa}
+            value={assignedVehicle?.placa || ''}
             onChange={(e) => setSelectedVehiclePlaca(e.target.value)}
             className="w-full bg-[#0a0c0e] border border-white/[0.12] rounded-xl px-3 py-2 text-xs text-[#ffffff] font-mono font-semibold focus:outline-none focus:border-[#ff6363] cursor-pointer appearance-none"
           >
-            {vehicles.map((v, idx) => (
+            {(vehicles || []).map((v, idx) => (
               <option key={v.id || v.placa} value={v.placa} className="bg-[#0e1115] text-[#ffffff]">
                 #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo}
               </option>
@@ -330,7 +337,7 @@ export default function ReportarAveria() {
         </div>
 
         <div className="w-full text-[11px] text-slate-300 font-mono whitespace-normal leading-snug pt-0.5">
-          {assignedVehicle.marca} {assignedVehicle.modelo} ({assignedVehicle.tipo}) • {assignedVehicle.empresaAsignada}
+          {assignedVehicle?.marca || 'Toyota'} {assignedVehicle?.modelo || 'Hilux 4x4'} ({assignedVehicle?.tipo || 'Pickup 4x4'}) • {assignedVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
         </div>
       </div>
 

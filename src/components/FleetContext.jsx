@@ -617,7 +617,7 @@ export function FleetProvider({ children }) {
     }
   };
 
-  const selectedVehicle = vehicles.find((v) => v.placa === selectedVehiclePlaca) || vehicles[0];
+  const selectedVehicle = (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) || (vehicles && vehicles[0]) || INITIAL_VEHICLES[0];
 
   const addCustomDriver = (name) => {
     if (!name || availableDrivers.includes(name)) return;
@@ -679,7 +679,7 @@ export function FleetProvider({ children }) {
     const locData = ubicacion || (latitud != null && longitud != null ? { latitud, longitud, precision } : null);
 
     setVehicles((prev) =>
-      prev.map((v) =>
+      (prev || []).map((v) =>
         v.placa === targetPlaca
           ? {
               ...v,
@@ -728,7 +728,7 @@ export function FleetProvider({ children }) {
           ...nuevoRegistro,
           timestamp: new Date().toISOString(),
         });
-        const vId = vehiculoId || vehicles.find((v) => v.placa === targetPlaca)?.id || 'veh-01';
+        const vId = vehiculoId || (vehicles || []).find((v) => v?.placa === targetPlaca)?.id || 'veh-01';
         if (vId) {
           await updateDoc(doc(db, 'vehiculos', vId), {
             odometroActual: odometro,
@@ -768,7 +768,7 @@ export function FleetProvider({ children }) {
     const locData = ubicacion || (latitud != null && longitud != null ? { latitud, longitud, precision } : null);
 
     setVehicles((prev) =>
-      prev.map((v) =>
+      (prev || []).map((v) =>
         v.placa === targetPlaca
           ? {
               ...v,
@@ -817,7 +817,7 @@ export function FleetProvider({ children }) {
           ...nuevoRegistro,
           timestamp: new Date().toISOString(),
         });
-        const vId = vehiculoId || vehicles.find((v) => v.placa === targetPlaca)?.id || 'veh-01';
+        const vId = vehiculoId || (vehicles || []).find((v) => v?.placa === targetPlaca)?.id || 'veh-01';
         if (vId) {
           await updateDoc(doc(db, 'vehiculos', vId), {
             odometroActual: finalOdo,
@@ -852,7 +852,7 @@ export function FleetProvider({ children }) {
     const locData = ubicacion || (latitud != null && longitud != null ? { latitud, longitud, precision } : null);
 
     setVehicles((prev) =>
-      prev.map((v) =>
+      (prev || []).map((v) =>
         v.placa === targetPlaca
           ? {
               ...v,
@@ -864,7 +864,7 @@ export function FleetProvider({ children }) {
       )
     );
 
-    const veh = vehicles.find((v) => v.placa === targetPlaca);
+    const veh = (vehicles || []).find((v) => v?.placa === targetPlaca);
 
     const nuevoRegistro = {
       id: `bit-${Date.now()}`,
@@ -909,7 +909,7 @@ export function FleetProvider({ children }) {
           ...nuevoRegistro,
           timestamp: new Date().toISOString(),
         });
-        const vId = vehiculoId || vehicles.find((v) => v.placa === targetPlaca)?.id || 'veh-01';
+        const vId = vehiculoId || (vehicles || []).find((v) => v?.placa === targetPlaca)?.id || 'veh-01';
         if (vId) {
           await updateDoc(doc(db, 'vehiculos', vId), {
             estadoOperativo: 'Inhabilitado por Avería',

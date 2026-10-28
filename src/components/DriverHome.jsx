@@ -41,8 +41,19 @@ export default function DriverHome() {
     selectedVehicle,
   } = useFleet();
 
-  const myVehicle = selectedVehicle || vehicles.find((v) => v.placa === selectedVehiclePlaca) || vehicles[0];
-  const myLogs = bitacora.filter((b) => b.placa === myVehicle.placa).slice(0, 3);
+  const fallbackVehicle = {
+    placa: 'W4E-892',
+    marca: 'Toyota',
+    modelo: 'Hilux 4x4',
+    tipo: 'Camioneta Pick-up',
+    traccion: '4x4',
+    empresaAsignada: 'VIP CAR Huancayo',
+    odometroActual: 45280,
+    nivelCombustible: 85,
+    equipamiento: ['Jaula Antivuelco', 'Pértiga LED', 'GPS Satelital', 'Extintor 6kg'],
+  };
+  const myVehicle = selectedVehicle || (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) || (vehicles && vehicles[0]) || fallbackVehicle;
+  const myLogs = (bitacora || []).filter((b) => b?.placa === myVehicle?.placa).slice(0, 3);
 
   // Estado para modal / panel de configuración rápida de conductor y terminal
   const [modalConfigAbierto, setModalConfigAbierto] = useState(false);
@@ -288,13 +299,13 @@ export default function DriverHome() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] text-[#8e939e] font-bold uppercase tracking-wider font-mono">
-                  Unidad Asignada • {myVehicle.tipo} ({myVehicle.traccion || '4x4'})
+                  Unidad Asignada • {myVehicle?.tipo || 'Pickup 4x4'} ({myVehicle?.traccion || '4x4'})
                 </div>
                 <h2 className="text-base sm:text-lg font-black text-white font-sans tracking-tight whitespace-normal leading-snug">
-                  {myVehicle.marca} {myVehicle.modelo}
+                  {myVehicle?.marca || 'Toyota'} {myVehicle?.modelo || 'Hilux 4x4'}
                 </h2>
                 <div className="text-[11px] text-[#626773] font-mono mt-0.5">
-                  {myVehicle.empresaAsignada || 'VIP CAR Huancayo'}
+                  {myVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
                 </div>
               </div>
             </div>
@@ -302,7 +313,7 @@ export default function DriverHome() {
             {/* Badge de Placa */}
             <div className="shrink-0">
               <span className="font-mono font-black text-sm sm:text-base text-[#ff6363] px-3.5 py-1.5 rounded-2xl telemetry-well border border-[#ff6363]/50 tracking-wider shadow-md inline-block">
-                {myVehicle.placa}
+                {myVehicle?.placa || 'W4E-892'}
               </span>
             </div>
           </div>
@@ -315,12 +326,12 @@ export default function DriverHome() {
             <div className="relative flex-1 min-w-[200px]">
               <select
                 id="select-unidad-home"
-                value={myVehicle.placa}
+                value={myVehicle?.placa || ''}
                 onChange={(e) => setSelectedVehiclePlaca(e.target.value)}
                 className="w-full bg-[#07080a] border border-white/[0.12] hover:border-[#ff6363]/50 focus:border-[#ff6363] rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none cursor-pointer appearance-none pr-8 truncate"
                 title="Seleccionar otra unidad de la flota"
               >
-                {vehicles.map((v, idx) => (
+                {(vehicles || []).map((v, idx) => (
                   <option key={v.id || v.placa} value={v.placa} className="bg-[#0e1115] text-white py-1">
                     #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo}
                   </option>
@@ -344,7 +355,7 @@ export default function DriverHome() {
                 <span className="font-bold text-[10px] uppercase">Odómetro</span>
               </div>
               <div className="text-2xl font-mono font-black text-white">
-                {myVehicle.odometroActual.toLocaleString()} <span className="text-xs font-normal text-[#626773]">km</span>
+                {(myVehicle?.odometroActual ?? 0).toLocaleString()} <span className="text-xs font-normal text-[#626773]">km</span>
               </div>
             </div>
 
@@ -354,12 +365,12 @@ export default function DriverHome() {
                 <span className="font-bold text-[10px] uppercase">Combustible</span>
               </div>
               <div className="text-2xl font-mono font-black text-white">
-                {myVehicle.nivelCombustible}%
+                {myVehicle?.nivelCombustible ?? 75}%
               </div>
               <div className="w-full bg-[#040506] h-1.5 rounded-full mt-1.5 overflow-hidden border border-white/10">
                 <div
-                  className={`h-full ${myVehicle.nivelCombustible > 30 ? 'bg-[#59d499]' : 'bg-[#ff6363]'}`}
-                  style={{ width: `${myVehicle.nivelCombustible}%` }}
+                  className={`h-full ${(myVehicle?.nivelCombustible ?? 75) > 30 ? 'bg-[#59d499]' : 'bg-[#ff6363]'}`}
+                  style={{ width: `${myVehicle?.nivelCombustible ?? 75}%` }}
                 />
               </div>
             </div>
@@ -371,7 +382,7 @@ export default function DriverHome() {
               <ShieldCheck className="w-3.5 h-3.5 text-[#ff6363]" />
               Semáforo Preventivo de Mantenimiento:
             </div>
-            <SemaforoBadge odometro={myVehicle.odometroActual} />
+            <SemaforoBadge odometro={myVehicle?.odometroActual ?? 0} />
           </div>
 
           {/* Equipamiento Minero */}
@@ -380,7 +391,7 @@ export default function DriverHome() {
               Equipamiento Instalado:
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {myVehicle.equipamiento.map((eq, idx) => (
+              {(myVehicle?.equipamiento || []).map((eq, idx) => (
                 <span
                   key={idx}
                   className="px-2.5 py-0.5 rounded-full text-[10px] font-mono telemetry-well text-[#949aa6] border border-white/[0.08]"
@@ -449,21 +460,21 @@ export default function DriverHome() {
         </h3>
 
         <div className="space-y-2.5">
-          {myLogs.length === 0 ? (
+          {(!myLogs || myLogs.length === 0) ? (
             <p className="text-xs text-[#626773] text-center py-3 font-mono">Sin registros previos.</p>
           ) : (
-            myLogs.map((log) => (
+            (myLogs || []).map((log, idx) => (
               <div
-                key={log.id}
+                key={log?.id || idx}
                 className="telemetry-well p-3 rounded-2xl flex items-center justify-between text-xs font-mono"
               >
                 <div>
-                  <div className="text-white font-bold">{log.tipoRegistro}</div>
-                  <div className="text-[10px] text-[#626773]">{log.fechaHora} • {log.proyecto}</div>
+                  <div className="text-white font-bold">{log?.tipoRegistro}</div>
+                  <div className="text-[10px] text-[#626773]">{log?.fechaHora} • {log?.proyecto}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-white font-bold">{log.odometro?.toLocaleString()} km</div>
-                  <span className="text-[9px] text-[#59d499]">{log.checklistEstado}</span>
+                  <div className="text-white font-bold">{log?.odometro?.toLocaleString()} km</div>
+                  <span className="text-[9px] text-[#59d499]">{log?.checklistEstado}</span>
                 </div>
               </div>
             ))
@@ -518,7 +529,7 @@ export default function DriverHome() {
                 onChange={(e) => setCurrentTerminal(e.target.value)}
                 className="w-full telemetry-well border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono"
               >
-                {availableTerminals.map((t) => (
+                {(availableTerminals || []).map((t) => (
                   <option key={t} value={t} className="bg-[#0b0d11]">
                     {t}
                   </option>
@@ -561,15 +572,15 @@ export default function DriverHome() {
                   Vehículo de Flota Asignado
                 </span>
                 <span className="text-[10px] text-cyan-400 font-mono">
-                  {vehicles.length} unidades
+                  {(vehicles || []).length} unidades
                 </span>
               </label>
               <select
-                value={myVehicle.placa}
+                value={myVehicle?.placa || ''}
                 onChange={(e) => setSelectedVehiclePlaca(e.target.value)}
                 className="w-full telemetry-well border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono"
               >
-                {vehicles.map((v, idx) => (
+                {(vehicles || []).map((v, idx) => (
                   <option key={v.id || v.placa} value={v.placa} className="bg-[#0b0d11]">
                     #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo}
                   </option>
