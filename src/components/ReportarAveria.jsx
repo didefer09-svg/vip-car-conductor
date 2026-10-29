@@ -3,12 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useFleet } from './FleetContext';
 import {
   AlertOctagon,
-  Camera,
   ArrowLeft,
   Truck,
   PhoneCall,
   CheckCircle2,
-  Upload,
   User,
   MapPin,
   Briefcase
@@ -59,7 +57,6 @@ export default function ReportarAveria() {
   const [tipoFalla, setTipoFalla] = useState('Falla mecánica (Motor / Caja / Tracción)');
   const [severidad, setSeveridad] = useState('Grave');
   const [descripcion, setDescripcion] = useState('');
-  const [fotoPreview, setFotoPreview] = useState(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -87,17 +84,6 @@ export default function ReportarAveria() {
       );
     }
   }, []);
-
-  const handleFotoChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFotoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -132,7 +118,7 @@ export default function ReportarAveria() {
         conductor: currentDriver,
         servicio: targetServicio,
         ubicacion: targetUbicacion,
-        foto: fotoPreview,
+        foto: null,
         latitud: gpsCoords?.latitud || null,
         longitud: gpsCoords?.longitud || null,
         precision: gpsCoords?.precision || null,
@@ -225,29 +211,6 @@ export default function ReportarAveria() {
           </div>
         </div>
       </div>
-
-      {/* Requerimiento 5: Botón Prominente de Llamada de Auxilio Inmediata */}
-      <a
-        href="tel:+51940341196"
-        className="w-full p-4 rounded-3xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-mono font-black flex items-center justify-between shadow-2xl border-2 border-red-400/40 transition-transform active:scale-98 cursor-pointer no-underline group"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-black/30 flex items-center justify-center shrink-0 border border-white/20 group-hover:scale-105 transition-transform">
-            <PhoneCall className="w-6 h-6 text-white animate-bounce" />
-          </div>
-          <div>
-            <div className="text-[10px] tracking-wider uppercase opacity-90 font-bold">
-              Llamada de Auxilio Inmediata (24/7)
-            </div>
-            <div className="text-base sm:text-lg font-black tracking-wide text-white">
-              +51 940 341 196
-            </div>
-          </div>
-        </div>
-        <span className="hidden sm:inline-block px-3 py-1.5 rounded-full bg-white/20 text-xs font-bold uppercase tracking-wider">
-          Llamar ahora
-        </span>
-      </a>
 
       {success && (
         <div className="p-4 rounded-2xl bg-[#ff6363] text-white flex items-center gap-3 shadow-xl font-mono animate-in fade-in">
@@ -386,58 +349,67 @@ export default function ReportarAveria() {
           />
         </div>
 
-        {/* Foto de Evidencia (Requerimiento 5: Sin foto obligatoria, totalmente opcional) */}
-        <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c] flex items-center gap-1.5">
-              <Camera className="w-3.5 h-3.5 text-[#ff6363]" />
-              05 // Foto de Evidencia
-            </label>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-              Opcional
+        {/* Panel Destacado de Contacto de Auxilio Inmediato (En reemplazo de foto de evidencia) */}
+        <div className="cockpit-panel border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-950/40 via-[#0a120e] to-[#070c0a] p-5 rounded-3xl space-y-3.5 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner">
+                <PhoneCall className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <div className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                  05 // Contacto de Auxilio Inmediato (24/7)
+                </div>
+                <div className="text-[11px] text-emerald-400/90 font-mono">
+                  Supervisión y Asistencia Mecánica en Ruta
+                </div>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-1 rounded-full font-bold">
+              Línea Activa 24h
             </span>
           </div>
 
-          <label className="cursor-pointer flex flex-col items-center justify-center p-4 border border-dashed border-white/[0.15] hover:border-white/[0.3] rounded-3xl telemetry-well transition-colors">
-            {fotoPreview ? (
-              <div className="space-y-1.5 text-center">
-                <img
-                  src={fotoPreview}
-                  alt="Evidencia"
-                  className="max-h-36 rounded-2xl mx-auto object-cover border border-white/[0.1]"
-                />
-                <span className="text-[10px] text-[#ff6363] font-mono font-bold">Cambiar foto</span>
+          <div className="p-4 rounded-2xl bg-black/50 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Número de Emergencia Oficial:</div>
+              <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-wider">
+                +51 940 341 196
               </div>
-            ) : (
-              <div className="text-center space-y-1">
-                <div className="w-8 h-8 rounded-full telemetry-well border border-white/[0.1] text-[#9c9c9d] flex items-center justify-center mx-auto">
-                  <Upload className="w-4 h-4" />
-                </div>
-                <div className="text-xs font-bold text-[#ffffff]">Tomar foto o adjuntar (Opcional)</div>
-                <div className="text-[10px] text-[#6a6b6c] font-mono">Puedes enviar el SOS sin foto para mayor rapidez</div>
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleFotoChange}
-              className="hidden"
-            />
-          </label>
+            </div>
+            <a
+              href="tel:+51940341196"
+              className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-transform cursor-pointer no-underline shrink-0 border border-emerald-400/40"
+            >
+              <PhoneCall className="w-4 h-4" />
+              <span>Llamar Ahora</span>
+            </a>
+          </div>
         </div>
 
-        {/* Botón de Emergencia Rojo Racing */}
-        <button
-          type="submit"
-          disabled={loading || success}
-          className="w-full py-4 rounded-full bg-[#ff6363] hover:bg-[#e11d48] text-white font-black text-sm shadow-2xl transition-colors flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer font-mono sticky bottom-4 z-10 backdrop-blur-md"
-        >
-          <AlertOctagon className="w-4 h-4" />
-          <span>
-            {loading ? 'TRANSMITIENDO ALERTA SOS A SHEETS Y FIRESTORE...' : 'ENVIAR REPORTE DE EMERGENCIA'}
-          </span>
-        </button>
+        {/* Botones de Acción Inmediata: Llamada Directa + Enviar Reporte */}
+        <div className="sticky bottom-4 z-10 space-y-2 backdrop-blur-md pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href="tel:+51940341196"
+              className="w-full py-4 rounded-full bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white font-mono font-black text-xs sm:text-sm shadow-xl border border-emerald-400/40 flex items-center justify-center gap-2 active:scale-98 cursor-pointer no-underline transition-all"
+            >
+              <PhoneCall className="w-4 h-4 animate-bounce" />
+              <span>LLAMADA DIRECTA (+51 940 341 196)</span>
+            </a>
+
+            <button
+              type="submit"
+              disabled={loading || success}
+              className="w-full py-4 rounded-full bg-[#ff6363] hover:bg-[#e11d48] text-white font-black text-xs sm:text-sm shadow-2xl transition-colors flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer font-mono"
+            >
+              <AlertOctagon className="w-4 h-4" />
+              <span>
+                {loading ? 'TRANSMITIENDO SOS...' : 'ENVIAR REPORTE DE EMERGENCIA'}
+              </span>
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   );

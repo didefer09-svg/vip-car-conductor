@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useFleet } from './FleetContext';
 import { usePWA } from '../context/PWAContext';
@@ -17,9 +17,7 @@ import {
   CloudUpload,
   User,
   MapPin,
-  Navigation,
   Settings,
-  ExternalLink,
   Check,
   Download,
   Briefcase
@@ -71,32 +69,6 @@ export default function DriverHome() {
 
   // Estado para modal / panel de configuración rápida
   const [modalConfigAbierto, setModalConfigAbierto] = useState(false);
-
-  // Coordenadas para la vista de mapa en tiempo real (Captura silenciosa en segundo plano)
-  const [mapCoords, setMapCoords] = useState({
-    lat: -12.0651,
-    lng: -75.2049,
-  });
-  const [gpsEnVivo, setGpsEnVivo] = useState(false);
-
-  // Obtener ubicación GPS silenciosa en segundo plano al montar la vista
-  useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setMapCoords({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-          setGpsEnVivo(true);
-        },
-        () => {
-          setGpsEnVivo(false);
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    }
-  }, []);
 
   return (
     <div className="space-y-5 text-[#949aa6]">
@@ -267,70 +239,7 @@ export default function DriverHome() {
         </div>
       )}
 
-      {/* 2. Vista de Recorrido en Ruta (Google Maps sin botones extras de GPS) */}
-      <section className="cockpit-panel rounded-3xl border border-white/[0.08] overflow-hidden shadow-2xl">
-        <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Navigation className="w-4 h-4 text-cyan-400 animate-pulse" />
-            <div>
-              <div className="text-xs font-mono font-bold text-white uppercase tracking-wider">
-                Recorrido en Ruta // Monitoreo Satelital
-              </div>
-              <div className="text-[10px] text-[#626773] font-mono">
-                Tracking en tiempo real • {currentUbicacion}
-              </div>
-            </div>
-          </div>
-          <span
-            className={`text-[10px] font-mono px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
-              gpsEnVivo
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                gpsEnVivo ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-400'
-              }`}
-            />
-            {gpsEnVivo ? 'GPS Satelital Activo' : 'GPS en Segundo Plano'}
-          </span>
-        </div>
-
-        {/* Iframe interactivo de Google Maps */}
-        <div className="relative w-full h-56 bg-slate-950">
-          <iframe
-            title="Recorrido en Ruta Google Maps"
-            width="100%"
-            height="100%"
-            className="w-full h-full border-0"
-            loading="lazy"
-            src={`https://maps.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}&z=14&output=embed`}
-          />
-        </div>
-
-        {/* Barra de telemetría sin botón de actualizar GPS */}
-        <div className="p-3.5 bg-[#07080a] border-t border-white/[0.08] flex items-center justify-between gap-2 text-xs font-mono">
-          <div className="flex items-center gap-1.5 text-slate-300 truncate">
-            <MapPin className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span className="truncate font-bold">
-              {currentUbicacion}
-            </span>
-          </div>
-
-          <a
-            href={`https://www.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1 transition-colors shrink-0"
-          >
-            <span>Ver en Maps</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-      </section>
-
-      {/* 3. Tarjeta Cockpit de la Unidad Seleccionada */}
+      {/* 2. Tarjeta Cockpit de la Unidad Seleccionada */}
       <div className="w-full cockpit-panel rounded-3xl border border-white/[0.08] overflow-hidden shadow-2xl">
         <div className="w-full p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 min-w-0 flex-1">
