@@ -176,10 +176,10 @@ export default function PWAInstallPrompt() {
                       </div>
                       <div className="text-xs">
                         <strong className="block text-white font-sans font-bold">
-                          Telemetría & Botón SOS Satelital
+                          Telemetría & Botón SOS de Emergencia
                         </strong>
                         <span className="text-[#8e939e] text-[11px] leading-snug">
-                          Alerta inmediata de averías mecánicas o choque con coordenadas GPS al centro de control Junín.
+                          Alerta inmediata de averías mecánicas o choque con asistencia directa y reporte a supervisión.
                         </span>
                       </div>
                     </div>

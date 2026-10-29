@@ -56,7 +56,6 @@ export default function DriverHome() {
     empresaAsignada: 'VIP CAR Huancayo',
     odometroActual: 45280,
     nivelCombustible: 80,
-    equipamiento: ['Jaula Antivuelco', 'Pértiga LED', 'GPS Satelital', 'Extintor 6kg'],
   };
 
   const myVehicle =
@@ -305,27 +304,10 @@ export default function DriverHome() {
             </div>
             <SemaforoBadge odometro={myVehicle?.odometroActual ?? 45280} />
           </div>
-
-          {/* Equipamiento Instalado */}
-          <div className="pt-2 border-t border-white/[0.08]">
-            <div className="text-[9px] uppercase font-mono tracking-wider text-[#626773] mb-1.5 font-bold">
-              Equipamiento Registrado:
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {(myVehicle?.equipamiento || ['Extintor 6kg', 'Botiquín', 'Tacos (2)', 'Conos (2)', 'Kit Antiderrame']).map((eq, idx) => (
-                <span
-                  key={idx}
-                  className="px-2.5 py-0.5 rounded-full text-[10px] font-mono telemetry-well text-[#949aa6] border border-white/[0.08]"
-                >
-                  {eq}
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* 4. Controladores Táctiles de Turno */}
+      {/* 3. Controladores Táctiles de Turno */}
       <div className="space-y-3">
         <h3 className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#626773] px-1 font-bold">
           Controladores de Turno
@@ -365,7 +347,7 @@ export default function DriverHome() {
                 Reportar Avería o Choque (SOS)
               </div>
               <div className="text-[10px] text-white/80">
-                Llamada directa de auxilio (+51 940 341 196) y alerta satelital
+                Llamada directa de auxilio (+51 940 341 196) y soporte 24/7
               </div>
             </div>
           </div>
