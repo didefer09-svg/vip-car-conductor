@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFleet } from './FleetContext';
+import SearchableSelect from './SearchableSelect';
+import {
+  CHECKLIST_CATEGORIAS,
+  CHECKLIST_43_ITEMS,
+} from '../data/fleetData';
 import {
   ClipboardCheck,
   Gauge,
@@ -9,71 +14,151 @@ import {
   AlertTriangle,
   ArrowLeft,
   Truck,
-  WifiOff,
-  CloudUpload,
-  Radio,
-  Zap,
-  User
+  User,
+  MapPin,
+  Briefcase,
+  ChevronDown,
+  RotateCcw,
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 import SemaforoBadge from './SemaforoBadge';
 import FuelGauge from './FuelGauge';
-
-const PREOPERATIONAL_ITEMS = [
-  { id: 'luces', label: 'Luces frontales, posteriores y direccionales', obligatorio: true },
-  { id: 'circulina', label: 'Circulina ámbar y pértiga LED operativa', obligatorio: true },
-  { id: 'frenos', label: 'Frenos de servicio y freno de mano', obligatorio: true },
-  { id: 'neumaticos', label: 'Neumáticos (presión y cocada adecuada)', obligatorio: true },
-  { id: 'aceite', label: 'Nivel de aceite de motor y refrigerante', obligatorio: true },
-  { id: 'seguridad', label: 'Extintor vigente (PQS 6kg) y botiquín minero', obligatorio: true },
-  { id: 'tacos', label: '2 Tacos de seguridad y llanta de repuesto', obligatorio: true },
-  { id: 'jaula', label: 'Jaula antivuelco interna/externa sin fisuras', obligatorio: true },
-];
 
 export default function CheckIn() {
   const navigate = useNavigate();
   const {
     vehicles,
+    unidades,
+    servicios,
     bitacora,
     registrarCheckIn,
     currentDriver,
-    currentTerminal,
-    terminalCoordinates,
+    currentUbicacion,
+    setCurrentUbicacion,
     selectedVehiclePlaca,
     setSelectedVehiclePlaca,
+    selectedService,
+    setSelectedService,
     selectedVehicle,
   } = useFleet();
 
   const fallbackVehicle = {
-    placa: 'W4E-892',
+    placa: 'BHF-821',
     marca: 'Toyota',
     modelo: 'Hilux 4x4',
-    tipo: 'Camioneta Pick-up',
+    tipo: 'Camioneta',
+    tipoDetalle: 'Camioneta - VIP CAR - UM-01',
+    codigo: 'UM-01',
     traccion: '4x4',
     empresaAsignada: 'VIP CAR Huancayo',
-    odometroActual: 14750,
-    nivelCombustible: 75,
+    odometroActual: 45280,
+    nivelCombustible: 80,
   };
-  const assignedVehicle = selectedVehicle || (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) || (vehicles && vehicles[0]) || fallbackVehicle;
+
+  const assignedVehicle =
+    selectedVehicle ||
+    (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) ||
+    (vehicles && vehicles[0]) ||
+    fallbackVehicle;
+
+  // Último registro de bitácora para autocompletar
   const ultimoRegistro = (bitacora || []).find((b) => b?.placa === assignedVehicle?.placa);
 
-  const [odometro, setOdometro] = useState(assignedVehicle?.odometroActual || 14750);
-  const [combustible, setCombustible] = useState(assignedVehicle?.nivelCombustible || 75);
+  // Estados del Formulario
+  const [servicio, setServicio] = useState(selectedService);
+  const [ubicacionManual, setUbicacionManual] = useState(currentUbicacion || 'Cochera Huancayo');
+  const [odometro, setOdometro] = useState(assignedVehicle?.odometroActual || 45280);
+  const [combustible, setCombustible] = useState(assignedVehicle?.nivelCombustible || 80);
   const [observaciones, setObservaciones] = useState('');
   const [loading, setLoading] = useState(false);
-  const [checklist, setChecklist] = useState({
-    luces: true,
-    circulina: true,
-    frenos: true,
-    neumaticos: true,
-    aceite: true,
-    seguridad: true,
-    tacos: true,
-    jaula: true,
-  });
   const [success, setSuccess] = useState(false);
-  const [obteniendoUbicacion, setObteniendoUbicacion] = useState(false);
-  const [errorGps, setErrorGps] = useState(null);
+  const [isOfflineRecord, setIsOfflineRecord] = useState(false);
   const [autoCompletadoMsg, setAutoCompletadoMsg] = useState(null);
+
+  // Coordenadas GPS silenciosas en segundo plano (Requerimiento 2: SIN botón visible de actualizar GPS)
+  const [gpsCoords, setGpsCoords] = useState(null);
+
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGpsCoords({
+            latitud: pos.coords.latitude,
+            longitud: pos.coords.longitude,
+            precision: Math.round(pos.coords.accuracy),
+          });
+        },
+        () => {
+          // Si no hay permiso o falla, no se muestra ningún error intrusivo
+          setGpsCoords(null);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, []);
+
+  // Inicialización del Checklist Oficial de 43 Puntos (Todos true/conformes por defecto)
+  const initialChecklist = useMemo(() => {
+    const init = {};
+    (CHECKLIST_43_ITEMS || []).forEach((item) => {
+      init[item.id] = true;
+    });
+    return init;
+  }, []);
+
+  const [checklist, setChecklist] = useState(initialChecklist);
+
+  // Estado para acordeones de categorías (abiertos por defecto o toggle)
+  const [categoriasAbiertas, setCategoriasAbiertas] = useState({
+    fuera_vehiculo: true,
+    neumaticos: false,
+    motor: false,
+    interior_apagado: false,
+    accesorios_documentos: false,
+    energizado_luces_exterior: false,
+    energizado_interior: false,
+  });
+
+  const toggleCategoria = (catId) => {
+    setCategoriasAbiertas((prev) => ({
+      ...prev,
+      [catId]: !prev[catId],
+    }));
+  };
+
+  const toggleCheck = (itemId) => {
+    setChecklist((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
+
+  const marcarTodosConformes = () => {
+    setChecklist(initialChecklist);
+  };
+
+  // Cálculo del resumen de 43 puntos
+  const totalItems = CHECKLIST_43_ITEMS.length; // 43
+  const conformesCount = useMemo(() => {
+    return (CHECKLIST_43_ITEMS || []).filter((it) => checklist[it.id]).length;
+  }, [checklist]);
+
+  const itemsConFalla = useMemo(() => {
+    return (CHECKLIST_43_ITEMS || []).filter((it) => !checklist[it.id]);
+  }, [checklist]);
+
+  const allChecked = conformesCount === totalItems;
+
+  const resumenChecklist = useMemo(() => {
+    if (allChecked) {
+      return '43/43 OK';
+    }
+    const fallasTexto = itemsConFalla.map((it) => `#${it.num} ${it.label}`).join(', ');
+    return `${conformesCount}/43 OK - Fallas: ${fallasTexto}`;
+  }, [allChecked, conformesCount, itemsConFalla]);
+
+  const estadoGeneral = allChecked ? 'Conforme / Operativo' : 'Con Observaciones';
 
   // Manejador del Selector de Flota Dinámico
   const handleVehicleChange = (newPlaca) => {
@@ -81,198 +166,123 @@ export default function CheckIn() {
     const target = (vehicles || []).find((v) => v?.placa === newPlaca);
     if (target) {
       const lastLog = (bitacora || []).find((b) => b?.placa === target?.placa);
-      const targetOdo = lastLog?.odometro || target?.odometroActual || 0;
+      const targetOdo = lastLog?.odometro || target?.odometroActual || 45280;
       const targetFuel = lastLog?.nivelCombustible
         ? parseInt(lastLog.nivelCombustible, 10)
-        : (target?.nivelCombustible ?? 75);
+        : (target?.nivelCombustible ?? 80);
       setOdometro(targetOdo);
       setCombustible(targetFuel);
-      setAutoCompletadoMsg(`Unidad [${target?.placa || newPlaca}] asignada: ${targetOdo.toLocaleString()} km • ${targetFuel}%`);
+      setAutoCompletadoMsg(`Unidad [${target?.placa || newPlaca}] seleccionada: ${targetOdo.toLocaleString()} km • ${targetFuel}%`);
       setTimeout(() => setAutoCompletadoMsg(null), 3500);
     }
   };
 
-  // Estados para validación y badge de GPS con soporte de respaldo
-  const [gpsStatus, setGpsStatus] = useState('idle'); // 'idle' | 'loading' | 'active' | 'denied' | 'fallback'
-  const [gpsCoords, setGpsCoords] = useState(null);
-
-  // Sincronizar si el vehículo se actualiza desde Firestore
-  useEffect(() => {
-    if (assignedVehicle?.odometroActual && !loading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOdometro(assignedVehicle.odometroActual);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignedVehicle?.placa, assignedVehicle?.odometroActual]);
-
-  // Validar GPS satelital
-  const validarGPS = () => {
-    if (!('geolocation' in navigator)) {
-      setGpsStatus('denied');
-      setErrorGps('Geolocalización no soportada por el navegador.');
-      return;
-    }
-    setGpsStatus('loading');
-    setErrorGps(null);
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = {
-          latitud: pos.coords.latitude,
-          longitud: pos.coords.longitude,
-          precision: Math.round(pos.coords.accuracy),
-          timestamp: pos.timestamp,
-        };
-        setGpsCoords(coords);
-        setGpsStatus('active');
-        setErrorGps(null);
-      },
-      () => {
-        setGpsStatus('denied');
-        setErrorGps('El navegador denegó o no pudo acceder al sensor GPS.');
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-  };
-
-  // Función de respaldo por si el navegador o socavón deniegan el GPS
-  const usarUbicacionRespaldo = () => {
-    const termCoords = terminalCoordinates[currentTerminal] || { latitud: -12.0651, longitud: -75.2049 };
-    const fallbackCoords = {
-      latitud: termCoords.latitud,
-      longitud: termCoords.longitud,
-      precision: 50,
-      esRespaldo: true,
-      timestamp: Date.now(),
-    };
-    setGpsCoords(fallbackCoords);
-    setGpsStatus('fallback');
-    setErrorGps(null);
-  };
-
-  // Intentar validar GPS automáticamente al abrir
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    validarGPS();
-  }, []);
-
-  // Función para autocompletar con el último registro
-  const handleAutocompletar = () => {
-    const odo = ultimoRegistro?.odometro || assignedVehicle?.odometroActual || 14750;
-    const comb = ultimoRegistro?.nivelCombustible
-      ? parseInt(ultimoRegistro.nivelCombustible, 10)
-      : (assignedVehicle?.nivelCombustible || 75);
-
-    setOdometro(odo);
-    setCombustible(comb);
-    setAutoCompletadoMsg(`Valores cargados de bitácora: ${odo.toLocaleString()} km • ${comb}%`);
-    setTimeout(() => setAutoCompletadoMsg(null), 3500);
-  };
-
-  const toggleCheck = (id) => {
-    setChecklist((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const allChecked = Object.values(checklist).every(Boolean);
-
-  const [isOfflineRecord, setIsOfflineRecord] = useState(false);
-  const [modoOdometro, setModoOdometro] = useState('manual');
-  const [calculandoGPS, setCalculandoGPS] = useState(false);
-
-  const handleCalcularGPS = () => {
-    setCalculandoGPS(true);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        () => {
-          validarGPS();
-          setCalculandoGPS(false);
-        },
-        () => {
-          setCalculandoGPS(false);
-        },
-        { timeout: 4000 }
-      );
+  const handleAutocompletarUltimo = () => {
+    if (ultimoRegistro) {
+      const odo = Number(ultimoRegistro.odometro || ultimoRegistro.kilometraje) || assignedVehicle?.odometroActual || 45280;
+      const comb = parseInt(ultimoRegistro.nivelCombustible || ultimoRegistro.combustible, 10) || assignedVehicle?.nivelCombustible || 80;
+      setOdometro(odo);
+      setCombustible(comb);
+      setAutoCompletadoMsg(`Autocompletado con último registro: ${odo.toLocaleString()} km • ${comb}%`);
+      setTimeout(() => setAutoCompletadoMsg(null), 3500);
     } else {
-      setCalculandoGPS(false);
+      setOdometro(assignedVehicle?.odometroActual || 45280);
+      setCombustible(assignedVehicle?.nivelCombustible || 80);
+      setAutoCompletadoMsg(`Valores base de unidad cargados: ${(assignedVehicle?.odometroActual || 45280).toLocaleString()} km`);
+      setTimeout(() => setAutoCompletadoMsg(null), 3500);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Si aún no hay coordenadas, intentar obtenerlas
-    let coords = gpsCoords;
-    if (!coords) {
-      setErrorGps(null);
-      setObteniendoUbicacion(true);
-      try {
-        coords = await new Promise((resolve, reject) => {
-          if (!('geolocation' in navigator)) {
-            reject(new Error('Geolocalización no soportada por el navegador.'));
-            return;
-          }
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              resolve({
-                latitud: pos.coords.latitude,
-                longitud: pos.coords.longitude,
-                precision: Math.round(pos.coords.accuracy),
-                timestamp: pos.timestamp,
-              });
-            },
-            (err) => reject(err),
-            { enableHighAccuracy: true, timeout: 8000 }
-          );
-        });
-        setGpsCoords(coords);
-        setGpsStatus('active');
-      } catch {
-        setErrorGps('Debes activar la ubicación o seleccionar la ubicación de respaldo para registrar el turno.');
-        setGpsStatus('denied');
-        setObteniendoUbicacion(false);
-        return;
-      }
-      setObteniendoUbicacion(false);
-    }
-
     setLoading(true);
+
+    const fechaHoraActual = new Date().toLocaleString('es-PE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    const targetPlaca = assignedVehicle?.placa || selectedVehiclePlaca;
+    const targetServicio = servicio || selectedService;
+    const targetUbicacion = ubicacionManual.trim() || currentUbicacion || 'Cochera Huancayo';
+
+    // Persistir ubicación en contexto para futuros registros
+    setCurrentUbicacion(targetUbicacion);
+    setSelectedService(targetServicio);
 
     try {
       const res = await registrarCheckIn({
-        placa: assignedVehicle.placa,
-        vehiculoId: assignedVehicle.id,
+        placa: targetPlaca,
+        vehiculoId: assignedVehicle?.id,
         odometro: Number(odometro),
         combustible: Number(combustible),
         checklist: allChecked,
+        checklistResumen: resumenChecklist,
+        estadoGeneral,
         conductor: currentDriver,
+        servicio: targetServicio,
+        ubicacion: targetUbicacion,
         observaciones: observaciones.trim(),
-        operacion: currentTerminal,
-        ubicacion: coords,
-        latitud: coords.latitud,
-        longitud: coords.longitud,
-        precision: coords.precision,
+        latitud: gpsCoords?.latitud || null,
+        longitud: gpsCoords?.longitud || null,
+        precision: gpsCoords?.precision || null,
       });
 
-      // Envío al Webhook de Google Sheets
+      // Payload completo para Google Sheets (Requerimiento 4)
+      const payloadWebhook = {
+        'Fecha/Hora': fechaHoraActual,
+        'Acción': 'Check-in',
+        'Nombre del Conductor': currentDriver,
+        'Placa seleccionada': targetPlaca,
+        'Servicio seleccionado': targetServicio,
+        'Ubicación escrita manualmente': targetUbicacion,
+        'Kilometraje': Number(odometro),
+        'Combustible (%)': `${combustible}%`,
+        'Estado General': estadoGeneral,
+        'Resumen del Checklist': resumenChecklist,
+        'Observaciones': observaciones.trim(),
+        'Coordenadas GPS': gpsCoords ? `${gpsCoords.latitud}, ${gpsCoords.longitud}` : 'Sin GPS',
+
+        // Claves técnicas para compatibilidad de columnas existentes
+        fechaHora: fechaHoraActual,
+        tipoEvento: 'Check-in',
+        accion: 'Check-in',
+        conductor: currentDriver,
+        operador: currentDriver,
+        placa: targetPlaca,
+        servicio: targetServicio,
+        tipoServicio: targetServicio,
+        ubicacion: targetUbicacion,
+        odometro: Number(odometro),
+        kilometraje: Number(odometro),
+        combustible: Number(combustible),
+        nivelCombustible: `${combustible}%`,
+        estadoGeneral,
+        checklist_condicion: resumenChecklist,
+        checklistResumen: resumenChecklist,
+        observaciones: observaciones.trim(),
+        latitud: gpsCoords?.latitud || null,
+        longitud: gpsCoords?.longitud || null,
+        precision: gpsCoords?.precision || null,
+        coordenadas: gpsCoords ? `${gpsCoords.latitud}, ${gpsCoords.longitud}` : '',
+      };
+
       try {
-        await fetch('https://script.google.com/macros/s/AKfycbz2tPas7ur3GYyWcKEPG9KaRI8QWzoV0-8xY9zuCCGK7j3Ht6M5ZFjuJA-ZP4shy5zTuQ/exec', {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
-          },
-          body: JSON.stringify({
-            tipoEvento: 'Check-in',
-            operador: currentDriver,
-            placa: assignedVehicle.placa,
-            odometro: Number(odometro),
-            combustible: Number(combustible),
-            checklist_condicion: allChecked ? 'Conforme / Aprobado' : 'Con observaciones',
-            observaciones: observaciones.trim(),
-            latitud: coords.latitud,
-            longitud: coords.longitud,
-          }),
-        });
+        await fetch(
+          'https://script.google.com/macros/s/AKfycbz2tPas7ur3GYyWcKEPG9KaRI8QWzoV0-8xY9zuCCGK7j3Ht6M5ZFjuJA-ZP4shy5zTuQ/exec',
+          {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify(payloadWebhook),
+          }
+        );
       } catch (webhookErr) {
         console.warn('Error al enviar al Webhook de Google Sheets:', webhookErr);
       }
@@ -290,256 +300,165 @@ export default function CheckIn() {
   };
 
   return (
-    <div className="space-y-4 text-[#9c9c9d]">
+    <div className="space-y-4 text-[#9c9c9d] pb-8">
       {/* Header con Conductor Activo */}
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={() => navigate('/conductor')}
           className="p-2 rounded-[10px] telemetry-well border border-white/[0.08] text-[#9c9c9d] hover:text-[#ffffff] cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <div className="flex-1 truncate">
-          <h1 className="text-lg font-black text-[#ffffff] font-sans">Check-in de Turno</h1>
-          <div className="flex items-center gap-2 text-[11px] text-[#6a6b6c] font-mono truncate">
-            <span className="flex items-center gap-1 text-[#ff6363] truncate">
-              <User className="w-3 h-3" />
-              {currentDriver || 'Conductor no especificado'}
-            </span>
+        <div>
+          <h1 className="text-base sm:text-lg font-black text-[#ffffff] font-sans">
+            Check-in de Turno
+          </h1>
+          <div className="text-[10px] font-mono text-[#6a6b6c] flex items-center gap-1.5">
+            <User className="w-3 h-3 text-[#ff6363]" />
+            <span>Operador: <strong className="text-white">{currentDriver}</strong></span>
           </div>
         </div>
       </div>
 
-      {/* Alerta de Operación en Socavón (Offline) */}
-      {!navigator.onLine && (
-        <div className="p-3 rounded-[10px] bg-[#231908] border border-[#f59e0b]/40 text-[#f59e0b] flex items-center gap-2 text-xs font-mono">
-          <WifiOff className="w-4 h-4 shrink-0 animate-pulse" />
-          <span>
-            <strong>Modo Socavón (Sin Señal 4G):</strong> Tu registro se guardará localmente en el dispositivo y se sincronizará automáticamente.
-          </span>
-        </div>
-      )}
-
+      {/* Banner de Éxito al Registrar */}
       {success && (
-        <div className={`p-3.5 rounded-[10px] border flex items-center gap-2.5 ${
-          isOfflineRecord
-            ? 'bg-[#231908] border-[#f59e0b]/50 text-[#f59e0b]'
-            : 'bg-[#071f16] border-[#59d499]/40 text-[#59d499]'
-        }`}>
-          {isOfflineRecord ? (
-            <CloudUpload className="w-5 h-5 text-[#f59e0b] shrink-0 animate-bounce" />
-          ) : (
-            <ClipboardCheck className="w-5 h-5 text-[#59d499] shrink-0" />
-          )}
-          <div className="text-xs font-bold font-mono">
+        <div className="p-4 rounded-2xl bg-[#092b1e] border border-[#59d499] text-[#59d499] flex items-center gap-3 font-mono animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <div className="text-xs font-bold">
             {isOfflineRecord
-              ? `¡Check-in guardado en Socavón! Unidad [${assignedVehicle.placa}] guardada localmente.`
-              : `¡Check-in registrado! Odómetro y telemetría de [${assignedVehicle.placa}] sincronizados.`}
+              ? '¡CHECK-IN GUARDADO OFFLINE! Se transmitirá al recuperar señal.'
+              : '¡CHECK-IN REGISTRADO CON ÉXITO! Sincronizado en Google Sheets y Firebase.'}
           </div>
         </div>
       )}
 
-      {/* Indicador Visual de Geolocalización (Badge de Validación y Respaldo) */}
-      {gpsStatus === 'active' && gpsCoords && (
-        <div className="p-3.5 rounded-2xl bg-emerald-950/50 border border-emerald-500/50 text-emerald-400 flex items-center justify-between text-xs font-mono animate-in fade-in">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <div>
-              <div className="font-bold flex items-center gap-1">
-                <span>GPS Activo // Coordenadas Validadas</span>
-              </div>
-              <div className="text-[11px] text-emerald-300/80">
-                {gpsCoords.latitud.toFixed(4)}°, {gpsCoords.longitud.toFixed(4)}° • Precisión ±{gpsCoords.precision || 10}m
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={validarGPS}
-            className="px-2.5 py-1 rounded-lg bg-emerald-900/60 hover:bg-emerald-800 text-white text-[10px] font-bold border border-emerald-500/40 cursor-pointer"
-          >
-            Actualizar
-          </button>
+      {/* Mensaje de Autocompletado */}
+      {autoCompletadoMsg && (
+        <div className="p-3 rounded-2xl bg-[#38bdf8]/10 border border-[#38bdf8]/30 text-[#38bdf8] flex items-center gap-2 text-xs font-mono animate-in fade-in">
+          <Zap className="w-4 h-4 shrink-0 text-[#38bdf8]" />
+          <span>{autoCompletadoMsg}</span>
         </div>
       )}
 
-      {gpsStatus === 'fallback' && gpsCoords && (
-        <div className="p-3.5 rounded-2xl bg-amber-950/50 border border-amber-500/50 text-amber-400 flex items-center justify-between text-xs font-mono animate-in fade-in">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
-            <div>
-              <div className="font-bold">Ubicación de Respaldo ({currentTerminal})</div>
-              <div className="text-[11px] text-amber-300/80">
-                {gpsCoords.latitud.toFixed(4)}°, {gpsCoords.longitud.toFixed(4)}° • Cobertura contingencia
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={validarGPS}
-            className="px-2.5 py-1 rounded-lg bg-amber-900/60 hover:bg-amber-800 text-white text-[10px] font-bold border border-amber-500/40 cursor-pointer"
-          >
-            Reintentar GPS
-          </button>
-        </div>
-      )}
-
-      {gpsStatus === 'denied' && (
-        <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-500/50 text-rose-300 text-xs font-mono space-y-2 animate-in fade-in">
-          <div className="flex items-center gap-2 text-rose-400 font-bold">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>Permiso GPS denegado o satélite sin cobertura</span>
-          </div>
-          <p className="text-[11px] text-rose-200/80">
-            Puedes reintentar la conexión o activar el respaldo oficial para <strong className="text-white">{currentTerminal}</strong> para poder enviar el formulario.
-          </p>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              type="button"
-              onClick={validarGPS}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-white/20 font-bold cursor-pointer"
-            >
-              Reintentar GPS
-            </button>
-            <button
-              type="button"
-              onClick={usarUbicacionRespaldo}
-              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-black font-bold border border-amber-400 cursor-pointer shadow-md"
-            >
-              ▲ Activar Respaldo ({currentTerminal})
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Selector de Flota Dinámico (18 Unidades vipcarhuancayo.com) */}
-      <div className="cockpit-panel border border-white/[0.08] p-4 rounded-3xl space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c]">
+      {/* 1. SELECTORES MANUALES: PLACA Y TIPO DE SERVICIO (Requerimiento 1) */}
+      <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-4 shadow-xl">
+        <div className="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
+          <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-white">
             <Truck className="w-3.5 h-3.5 text-[#ff6363]" />
-            <span>00 // Selector de Flota Dinámico</span>
+            <span>00 // Asignación de Unidad y Servicio</span>
           </div>
-          <span className="text-[10px] font-mono text-[#59d499] bg-[#071f16] border border-[#59d499]/30 px-2 py-0.5 rounded-full font-bold">
-            vipcarhuancayo.com ({vehicles.length} Unidades)
+          <span className="text-[10px] font-mono text-[#59d499] bg-[#59d499]/10 px-2 py-0.5 rounded-full border border-[#59d499]/30 font-bold">
+            Oficial VIP CAR
           </span>
         </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor="select-flota-checkin" className="text-[11px] text-[#9c9c9d] font-mono">
-            Vehículo de turno:
+        {/* Selector de Placa con Buscador (30 equipos) */}
+        <SearchableSelect
+          id="select-flota-checkin"
+          label="Vehículo Asignado (Placa Oficial)"
+          icon={Truck}
+          value={assignedVehicle?.placa || selectedVehiclePlaca}
+          onChange={(newPlaca) => handleVehicleChange(newPlaca)}
+          options={(unidades || []).map((u) => ({
+            value: u.placa,
+            label: `${u.placa} • ${u.tipo}`,
+            sublabel: u.tipoDetalle,
+            badge: u.codigo,
+          }))}
+          placeholder="Escribe para filtrar placa (ej: BHF, W7W, Sprinter...)"
+        />
+
+        {/* Selector de Servicio con Buscador (16 servicios) */}
+        <SearchableSelect
+          id="select-servicio-checkin"
+          label="Tipo de Servicio Actual"
+          icon={Briefcase}
+          value={servicio}
+          onChange={(newServ) => setServicio(newServ)}
+          options={(servicios || []).map((s) => ({
+            value: s,
+            label: s,
+            sublabel: '',
+            badge: 'Servicio',
+          }))}
+          placeholder="Escribe para filtrar servicio (ej: Aeropuerto, OCP, Almacén...)"
+        />
+
+        {/* 2. UBICACIÓN / TERMINAL EN TEXTO LIBRE (Requerimiento 2: SIN botón visible de GPS) */}
+        <div className="space-y-1.5 pt-1">
+          <label
+            htmlFor="input-ubicacion-checkin"
+            className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#8e939e] flex items-center justify-between"
+          >
+            <span className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+              Ubicación de Salida / Dónde estás *
+            </span>
+            <span className="text-[10px] text-cyan-400 font-mono">Texto libre</span>
           </label>
-          <div className="relative">
-            <select
-              id="select-flota-checkin"
-              value={assignedVehicle?.placa || ''}
-              onChange={(e) => handleVehicleChange(e.target.value)}
-              className="w-full bg-[#0a0c0e] border border-white/[0.15] rounded-2xl px-3.5 py-3 text-xs text-[#ffffff] font-mono font-semibold focus:outline-none focus:border-[#ff6363] transition-colors cursor-pointer appearance-none"
-            >
-              {(vehicles || []).map((v, idx) => (
-                <option key={v.id || v.placa} value={v.placa} className="bg-[#0e1115] text-[#ffffff] py-2">
-                  #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo} ({v.tipo})
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-[#6a6b6c]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
+          <input
+            id="input-ubicacion-checkin"
+            type="text"
+            required
+            value={ubicacionManual}
+            onChange={(e) => setUbicacionManual(e.target.value)}
+            placeholder="Ej: Cochera Huancayo, Aeropuerto Jauja, Base Toromocho..."
+            className="w-full bg-[#0a0c0e] border border-white/[0.15] rounded-2xl px-3.5 py-3 text-xs text-white font-mono focus:border-cyan-400 focus:outline-none transition-colors"
+          />
+          <p className="text-[10px] text-[#626773] font-mono px-1">
+            Escribe manualmente tu ubicación. Las coordenadas GPS se capturan en segundo plano.
+          </p>
         </div>
 
-        {/* Tarjeta de Especificaciones de la Unidad Seleccionada */}
-        <div className="w-full telemetry-well border border-white/[0.08] p-4 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
-          <div className="space-y-1 min-w-0 flex-1">
+        {/* Tarjeta de Especificaciones de la Unidad */}
+        <div className="w-full telemetry-well border border-white/[0.08] p-3.5 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
+          <div className="space-y-0.5 min-w-0 flex-1">
             <div className="text-[10px] text-[#8e939e] uppercase font-mono font-bold">
-              {assignedVehicle?.tipo || 'Pickup 4x4'} • {assignedVehicle?.traccion || '4x4'}
+              {assignedVehicle?.tipoDetalle || assignedVehicle?.tipo}
             </div>
-            <div className="text-sm sm:text-base font-black text-[#ffffff] font-sans whitespace-normal leading-snug">
-              {assignedVehicle?.marca || 'Toyota'} {assignedVehicle?.modelo || 'Hilux 4x4'}
+            <div className="text-xs sm:text-sm font-black text-white font-sans truncate">
+              {assignedVehicle?.marca} {assignedVehicle?.modelo}
             </div>
-            <div className="text-[11px] text-cyan-400 font-mono">
-              {assignedVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
+            <div className="text-[10px] text-cyan-400 font-mono truncate">
+              {servicio}
             </div>
           </div>
           <div className="flex flex-col items-end shrink-0 pl-2">
-            <span className="font-mono font-black text-sm sm:text-base text-[#ff6363] px-3.5 py-1 rounded-full telemetry-well border border-[#ff6363]/50 tracking-wider shadow-md">
-              {assignedVehicle?.placa || 'W4E-892'}
+            <span className="font-mono font-black text-sm text-[#ff6363] px-3 py-1 rounded-full telemetry-well border border-[#ff6363]/50 tracking-wider shadow-md">
+              {assignedVehicle?.placa}
             </span>
             <span className="text-[10px] text-[#8e939e] font-mono mt-1">
-              Base: {(assignedVehicle?.odometroActual ?? 0).toLocaleString()} km
+              Base: {(assignedVehicle?.odometroActual ?? 45280).toLocaleString()} km
             </span>
           </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Odómetro Sunken con Monospace Blanco y Botón Autocompletar */}
+        {/* Odómetro Inicial */}
         <div className="cockpit-panel border border-white/[0.08] p-5 rounded-3xl space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center justify-between">
             <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c] flex items-center gap-1.5">
               <Gauge className="w-3.5 h-3.5 text-[#ff6363]" />
-              01 // Registro de Odómetro (km) *
+              01 // Odómetro Inicial *
             </label>
-
-            {/* Botón de Autocompletado Rápido con Último Registro */}
             <button
               type="button"
-              onClick={handleAutocompletar}
-              className="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto"
-              title="Cargar odómetro y combustible del último turno"
+              onClick={handleAutocompletarUltimo}
+              className="text-[11px] font-mono text-[#ff6363] hover:underline flex items-center gap-1 cursor-pointer font-bold"
             >
-              <Zap className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Autocompletar ({ultimoRegistro?.odometro || assignedVehicle.odometroActual} km)</span>
+              <RotateCcw className="w-3 h-3" />
+              Autocompletar último
             </button>
           </div>
-
-          {autoCompletadoMsg && (
-            <div className="p-2 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 text-xs font-mono flex items-center gap-1.5 animate-in fade-in">
-              <Zap className="w-3.5 h-3.5 shrink-0" />
-              <span>{autoCompletadoMsg}</span>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between text-[10px] text-[#6a6b6c] font-mono">
-            <span>Último registrado en flota: {assignedVehicle.odometroActual} km</span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setModoOdometro(modoOdometro === 'manual' ? 'gps' : 'manual')}
-                className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
-              >
-                {modoOdometro === 'manual' ? 'Modo GPS' : 'Modo Manual'}
-              </button>
-            </div>
-          </div>
-
-          {/* Panel informativo de cálculo por GPS */}
-          {modoOdometro === 'gps' && (
-            <div className="p-3 rounded-2xl bg-[#38bdf8]/10 border border-[#38bdf8]/30 flex items-center justify-between text-xs font-mono text-[#38bdf8]">
-              <div className="flex items-center gap-2">
-                <Radio className="w-3.5 h-3.5 animate-pulse text-[#38bdf8] shrink-0" />
-                <span className="text-[11px] font-medium">
-                  {calculandoGPS ? 'Calculando recorrido por satélites...' : 'Geolocalización satelital activa'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCalcularGPS}
-                disabled={calculandoGPS}
-                className="text-[10px] underline font-bold hover:text-white cursor-pointer shrink-0 ml-2"
-              >
-                Recalcular
-              </button>
-            </div>
-          )}
 
           <div className="relative">
             <input
               type="number"
               inputMode="numeric"
               required
-              min={assignedVehicle.odometroActual}
+              min={1}
               value={odometro}
               onChange={(e) => setOdometro(e.target.value)}
               className="w-full telemetry-well border border-white/[0.1] rounded-full px-4 py-3 text-2xl font-mono font-black text-[#ffffff] text-center tracking-widest focus:outline-none focus:border-[#ff6363]"
@@ -549,13 +468,12 @@ export default function CheckIn() {
             </span>
           </div>
 
-          {/* Semáforo en vivo */}
           <div className="mt-1">
-            <SemaforoBadge odometro={Number(odometro) || assignedVehicle.odometroActual} />
+            <SemaforoBadge odometro={Number(odometro) || assignedVehicle?.odometroActual || 45280} />
           </div>
         </div>
 
-        {/* Nivel de Combustible con Tacómetro Visual */}
+        {/* Nivel de Combustible */}
         <div className="cockpit-panel border border-white/[0.08] p-5 rounded-3xl space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c] flex items-center gap-1.5">
@@ -572,47 +490,139 @@ export default function CheckIn() {
           />
         </div>
 
-        {/* Checklist Preoperacional */}
-        <div className="cockpit-panel border border-white/[0.08] p-5 rounded-3xl space-y-2.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c] flex items-center gap-1.5">
-              <ClipboardCheck className="w-3.5 h-3.5 text-[#ff6363]" />
-              03 // Inspección de Seguridad
-            </label>
-            <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full ${
-              allChecked
-                ? 'bg-[#59d499]/15 text-[#59d499] border border-[#59d499]/40'
-                : 'bg-[#ff6363]/15 text-[#ff6363] border border-[#ff6363]/40'
-            }`}>
-              {allChecked ? '100% CONFORME' : 'CON OBSERVACIONES'}
-            </span>
+        {/* 3. NUEVO CHECKLIST OFICIAL DE 43 PUNTOS POR CATEGORÍAS (Requerimiento 3) */}
+        <div className="cockpit-panel border border-white/[0.08] p-4 sm:p-5 rounded-3xl space-y-3 shadow-xl">
+          <div className="flex items-center justify-between flex-wrap gap-2 border-b border-white/[0.06] pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="w-4 h-4 text-[#ff6363]" />
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                  03 // Checklist Oficial (43 Puntos)
+                </h3>
+              </div>
+              <p className="text-[10px] text-[#8e939e] font-mono mt-0.5">
+                Por defecto todos conformes. Desmarca en rojo si detectas alguna falla.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={marcarTodosConformes}
+                className="text-[10px] font-mono text-cyan-400 hover:underline cursor-pointer font-bold"
+              >
+                Resetear 43/43
+              </button>
+              <span
+                className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border ${
+                  allChecked
+                    ? 'bg-[#59d499]/15 text-[#59d499] border-[#59d499]/40'
+                    : 'bg-[#ff6363]/15 text-[#ff6363] border-[#ff6363]/40'
+                }`}
+              >
+                {allChecked ? '43/43 CONFORME' : `${conformesCount}/43 (${itemsConFalla.length} FALLAS)`}
+              </span>
+            </div>
           </div>
 
-          <div className="space-y-1.5 pt-1">
-            {(PREOPERATIONAL_ITEMS || []).map((item) => {
-              const isChecked = checklist[item.id];
+          {/* Acordeones de las 7 Categorías */}
+          <div className="space-y-2 pt-1">
+            {(CHECKLIST_CATEGORIAS || []).map((cat) => {
+              const itemsCat = cat.items || [];
+              const conformesEnCat = itemsCat.filter((it) => checklist[it.id]).length;
+              const tieneFallas = conformesEnCat < itemsCat.length;
+              const estaAbierto = categoriasAbiertas[cat.id];
+
               return (
                 <div
-                  key={item.id}
-                  onClick={() => toggleCheck(item.id)}
-                  className={`p-3 rounded-2xl border flex items-center justify-between transition-colors cursor-pointer select-none ${
-                    isChecked
-                      ? 'telemetry-well border-white/[0.08] hover:border-white/[0.2]'
-                      : 'bg-[#2d0e14]/40 border-[#ff6363]/40'
+                  key={cat.id}
+                  className={`rounded-2xl border transition-colors overflow-hidden ${
+                    tieneFallas
+                      ? 'border-[#ff6363]/40 bg-[#160a0d]'
+                      : 'border-white/[0.08] bg-[#07080a]'
                   }`}
                 >
-                  <span className={`text-xs font-mono ${isChecked ? 'text-white' : 'text-[#ff6363]'}`}>
-                    {item.label}
-                  </span>
-                  <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                      isChecked
-                        ? 'bg-[#59d499] text-black font-bold'
-                        : 'bg-[#07080a] border border-[#ff6363] text-[#ff6363]'
-                    }`}
+                  {/* Encabezado del Acordeón */}
+                  <button
+                    type="button"
+                    onClick={() => toggleCategoria(cat.id)}
+                    className="w-full p-3.5 flex items-center justify-between text-left cursor-pointer hover:bg-white/[0.03] transition-colors"
                   >
-                    {isChecked ? <Check className="w-3 h-3 stroke-[3]" /> : <AlertTriangle className="w-3 h-3" />}
-                  </div>
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          tieneFallas ? 'bg-[#ff6363] animate-pulse' : 'bg-[#59d499]'
+                        }`}
+                      />
+                      <span className="text-xs font-mono font-bold text-white">
+                        {cat.titulo}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                          tieneFallas
+                            ? 'bg-[#ff6363]/20 text-[#ff6363]'
+                            : 'bg-white/[0.06] text-[#8e939e]'
+                        }`}
+                      >
+                        {conformesEnCat}/{itemsCat.length}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-[#8e939e] transition-transform duration-200 ${
+                          estaAbierto ? 'rotate-180 text-white' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Lista de Ítems dentro de la Categoría */}
+                  {estaAbierto && (
+                    <div className="p-2.5 pt-0 space-y-1.5 border-t border-white/[0.04]">
+                      {(itemsCat || []).map((item) => {
+                        const isChecked = checklist[item.id];
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => toggleCheck(item.id)}
+                            className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-colors cursor-pointer select-none ${
+                              isChecked
+                                ? 'telemetry-well border-white/[0.06] hover:border-white/[0.15]'
+                                : 'bg-[#2d0e14]/70 border-[#ff6363]/60'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                              <span className="text-[10px] font-mono text-[#8e939e] font-bold shrink-0 mt-0.5">
+                                #{String(item.num).padStart(2, '0')}
+                              </span>
+                              <span
+                                className={`text-xs font-mono leading-tight ${
+                                  isChecked ? 'text-slate-200' : 'text-[#ff6363] font-bold'
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                            </div>
+
+                            <div
+                              className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                                isChecked
+                                  ? 'bg-[#59d499] text-black font-bold'
+                                  : 'bg-[#ff6363] text-white font-bold shadow-md'
+                              }`}
+                            >
+                              {isChecked ? (
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              ) : (
+                                <AlertTriangle className="w-3 h-3 stroke-[2.5]" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -633,30 +643,15 @@ export default function CheckIn() {
           />
         </div>
 
-        {/* Alerta de Error de GPS si falló */}
-        {errorGps && gpsStatus !== 'fallback' && (
-          <div className="p-4 rounded-2xl bg-[#2d0e14] border border-[#ff6363] text-[#ff6363] flex items-start gap-3 text-xs font-mono animate-in fade-in">
-            <AlertTriangle className="w-5 h-5 shrink-0 text-[#ff6363] mt-0.5" />
-            <div>
-              <strong className="block text-white font-bold mb-0.5">Ubicación Requerida</strong>
-              <span>{errorGps}</span>
-            </div>
-          </div>
-        )}
-
         {/* Botón Cockpit Action Cápsula - Sticky */}
         <button
           type="submit"
-          disabled={loading || obteniendoUbicacion || success}
+          disabled={loading || success}
           className="btn-cockpit-action w-full py-4 flex items-center justify-center gap-2 text-sm uppercase tracking-wide rounded-full font-mono font-bold active:scale-98 disabled:opacity-50 cursor-pointer shadow-2xl sticky bottom-4 z-10 backdrop-blur-md"
         >
           <ClipboardCheck className="w-4 h-4 stroke-[2.5]" />
           <span>
-            {obteniendoUbicacion
-              ? 'Obteniendo ubicación...'
-              : loading
-              ? 'SINCRONIZANDO EN FIRESTORE...'
-              : 'CONFIRMAR CHECK-IN DE TURNO'}
+            {loading ? 'SINCRONIZANDO EN FIRESTORE & SHEETS...' : 'CONFIRMAR CHECK-IN DE TURNO'}
           </span>
         </button>
       </form>

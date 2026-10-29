@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useFleet } from './FleetContext';
 import { usePWA } from '../context/PWAContext';
+import SearchableSelect from './SearchableSelect';
 import {
   Truck,
   Gauge,
@@ -19,65 +20,68 @@ import {
   Navigation,
   Settings,
   ExternalLink,
-  Plus,
   Check,
-  Download
+  Download,
+  Briefcase
 } from 'lucide-react';
 import SemaforoBadge from './SemaforoBadge';
 
 export default function DriverHome() {
   const {
     vehicles,
+    unidades,
+    servicios,
     bitacora,
     pendingSyncCount,
     sincronizarColaManual,
     currentDriver,
     setCurrentDriver,
-    currentTerminal,
-    setCurrentTerminal,
-    availableTerminals,
-    addCustomTerminal,
-    terminalCoordinates,
+    currentUbicacion,
+    setCurrentUbicacion,
     selectedVehiclePlaca,
     setSelectedVehiclePlaca,
+    selectedService,
+    setSelectedService,
     selectedVehicle,
   } = useFleet();
 
   const { isInstalled, openInstallPromptManual } = usePWA();
 
   const fallbackVehicle = {
-    placa: 'W4E-892',
+    placa: 'BHF-821',
     marca: 'Toyota',
     modelo: 'Hilux 4x4',
-    tipo: 'Camioneta Pick-up',
+    tipo: 'Camioneta',
+    tipoDetalle: 'Camioneta - VIP CAR - UM-01',
+    codigo: 'UM-01',
     traccion: '4x4',
     empresaAsignada: 'VIP CAR Huancayo',
     odometroActual: 45280,
-    nivelCombustible: 85,
+    nivelCombustible: 80,
     equipamiento: ['Jaula Antivuelco', 'Pértiga LED', 'GPS Satelital', 'Extintor 6kg'],
   };
-  const myVehicle = selectedVehicle || (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) || (vehicles && vehicles[0]) || fallbackVehicle;
+
+  const myVehicle =
+    selectedVehicle ||
+    (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) ||
+    (vehicles && vehicles[0]) ||
+    fallbackVehicle;
+
   const myLogs = (bitacora || []).filter((b) => b?.placa === myVehicle?.placa).slice(0, 3);
 
-  // Estado para modal / panel de configuración rápida de conductor y terminal
+  // Estado para modal / panel de configuración rápida
   const [modalConfigAbierto, setModalConfigAbierto] = useState(false);
-  const [nuevoTerminalInput, setNuevoTerminalInput] = useState('');
-  const [mostrarAgregarTerminal, setMostrarAgregarTerminal] = useState(false);
 
-  // Coordenadas para la vista de mapa en tiempo real
-  const defaultTermCoords = terminalCoordinates[currentTerminal] || { latitud: -12.0651, longitud: -75.2049 };
+  // Coordenadas para la vista de mapa en tiempo real (Captura silenciosa en segundo plano)
   const [mapCoords, setMapCoords] = useState({
-    lat: defaultTermCoords.latitud,
-    lng: defaultTermCoords.longitud,
+    lat: -12.0651,
+    lng: -75.2049,
   });
   const [gpsEnVivo, setGpsEnVivo] = useState(false);
-  const [buscandoGPS, setBuscandoGPS] = useState(false);
 
-  // Obtener ubicación GPS al montar la vista
+  // Obtener ubicación GPS silenciosa en segundo plano al montar la vista
   useEffect(() => {
     if ('geolocation' in navigator) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBuscandoGPS(true);
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setMapCoords({
@@ -85,53 +89,18 @@ export default function DriverHome() {
             lng: pos.coords.longitude,
           });
           setGpsEnVivo(true);
-          setBuscandoGPS(false);
         },
         () => {
-          // Si falla, centra en las coordenadas del terminal activo
-          const termCoords = terminalCoordinates[currentTerminal] || { latitud: -12.0651, longitud: -75.2049 };
-          setMapCoords({ lat: termCoords.latitud, lng: termCoords.longitud });
           setGpsEnVivo(false);
-          setBuscandoGPS(false);
-        },
-        { enableHighAccuracy: true, timeout: 6000 }
-      );
-    }
-  }, [currentTerminal, terminalCoordinates]);
-
-  const handleActualizarGPS = () => {
-    if ('geolocation' in navigator) {
-      setBuscandoGPS(true);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setMapCoords({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-          setGpsEnVivo(true);
-          setBuscandoGPS(false);
-        },
-        () => {
-          setBuscandoGPS(false);
         },
         { enableHighAccuracy: true, timeout: 8000 }
       );
     }
-  };
-
-  const handleGuardarNuevoTerminal = (e) => {
-    e.preventDefault();
-    if (nuevoTerminalInput.trim()) {
-      addCustomTerminal(nuevoTerminalInput.trim());
-      setCurrentTerminal(nuevoTerminalInput.trim());
-      setNuevoTerminalInput('');
-      setMostrarAgregarTerminal(false);
-    }
-  };
+  }, []);
 
   return (
     <div className="space-y-5 text-[#949aa6]">
-      {/* 1. Cabecera Cockpit Simplificada con Input Libre de Conductor */}
+      {/* 1. Cabecera Cockpit con Input de Conductor y Ubicación Manual */}
       <div className="cockpit-panel rounded-3xl p-5 sm:p-6 border border-white/[0.08] shadow-xl relative overflow-hidden space-y-4">
         {/* Fila Superior: Fecha y Estado del Turno */}
         <div className="flex items-center justify-between gap-2">
@@ -184,7 +153,7 @@ export default function DriverHome() {
               Conductor / Operador en Turno:
             </span>
             <span className="text-[10px] text-[#59d499] font-mono flex items-center gap-1">
-              <Check className="w-3 h-3 text-[#59d499]" /> Guardado en este dispositivo
+              <Check className="w-3 h-3 text-[#59d499]" /> Guardado en este equipo
             </span>
           </label>
 
@@ -200,9 +169,77 @@ export default function DriverHome() {
           </div>
         </div>
 
-        <p className="text-[11px] text-[#626773] font-mono flex items-center gap-1.5">
-          <span>Tus datos quedarán guardados y se asociarán a la bitácora, odómetro y telemetría de tu turno.</span>
-        </p>
+        {/* Fila 2: Ubicación / Terminal en Texto Libre (Requerimiento 2) */}
+        <div className="space-y-1.5 pt-1">
+          <label
+            htmlFor="input-ubicacion-home"
+            className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8e939e] flex items-center justify-between"
+          >
+            <span className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+              Ubicación Actual / Dónde estás:
+            </span>
+            <span className="text-[10px] text-cyan-400 font-mono">Texto libre manual</span>
+          </label>
+
+          <div className="relative">
+            <input
+              id="input-ubicacion-home"
+              type="text"
+              value={currentUbicacion}
+              onChange={(e) => setCurrentUbicacion(e.target.value)}
+              placeholder="Ej: Cochera Huancayo, Aeropuerto Jauja, Socavón..."
+              className="w-full bg-[#07080b] border border-white/[0.12] focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-bold text-white placeholder-slate-600 font-mono transition-all outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Selectores Manuales Oficiales: Placa (30 equipos) y Tipo de Servicio (16 servicios) */}
+      <div className="cockpit-panel rounded-3xl p-5 border border-white/[0.08] shadow-xl space-y-4">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+          <div className="text-xs font-mono font-bold uppercase tracking-wider text-white flex items-center gap-2">
+            <Truck className="w-4 h-4 text-[#ff6363]" />
+            <span>Asignación de Unidad & Servicio</span>
+          </div>
+          <span className="text-[10px] font-mono text-[#59d499] bg-[#59d499]/10 px-2 py-0.5 rounded-full border border-[#59d499]/30 font-bold">
+            30 Unidades • 16 Servicios
+          </span>
+        </div>
+
+        {/* Selector de Placa con Buscador */}
+        <SearchableSelect
+          id="select-unidad-home"
+          label="Unidad Asignada (Placa)"
+          icon={Truck}
+          value={selectedVehiclePlaca}
+          onChange={(newPlaca) => setSelectedVehiclePlaca(newPlaca)}
+          options={(unidades || []).map((u) => ({
+            value: u.placa,
+            label: `${u.placa} • ${u.tipo}`,
+            sublabel: u.tipoDetalle,
+            badge: u.codigo,
+          }))}
+          placeholder="Filtrar por placa (ej: BHF, W7W, Sprinter, Bus...)"
+          helperText="Elige la unidad que estás operando para registrar odómetro y checklist."
+        />
+
+        {/* Selector de Servicio con Buscador */}
+        <SearchableSelect
+          id="select-servicio-home"
+          label="Tipo de Servicio Actual"
+          icon={Briefcase}
+          value={selectedService}
+          onChange={(newServicio) => setSelectedService(newServicio)}
+          options={(servicios || []).map((s) => ({
+            value: s,
+            label: s,
+            sublabel: '',
+            badge: 'Servicio',
+          }))}
+          placeholder="Filtrar servicio (ej: Aeropuerto, Almacén, OCP, Lima...)"
+          helperText="Servicio corporativo o ruta activa asignada a este turno."
+        />
       </div>
 
       {/* Alerta de Sincronización Pendiente */}
@@ -230,17 +267,17 @@ export default function DriverHome() {
         </div>
       )}
 
-      {/* 2. Vista de Recorrido en Ruta (Google Maps Interactivo) */}
+      {/* 2. Vista de Recorrido en Ruta (Google Maps sin botones extras de GPS) */}
       <section className="cockpit-panel rounded-3xl border border-white/[0.08] overflow-hidden shadow-2xl">
         <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Navigation className="w-4 h-4 text-cyan-400 animate-pulse" />
             <div>
               <div className="text-xs font-mono font-bold text-white uppercase tracking-wider">
-                Recorrido en Ruta // Monitoreo GPS
+                Recorrido en Ruta // Monitoreo Satelital
               </div>
               <div className="text-[10px] text-[#626773] font-mono">
-                Ubicación satelital y tracking del móvil en servicio
+                Tracking en tiempo real • {currentUbicacion}
               </div>
             </div>
           </div>
@@ -248,15 +285,15 @@ export default function DriverHome() {
             className={`text-[10px] font-mono px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
               gpsEnVivo
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
             }`}
           >
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                gpsEnVivo ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                gpsEnVivo ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-400'
               }`}
             />
-            {buscandoGPS ? 'Sincronizando...' : gpsEnVivo ? 'GPS Activo' : 'Ubicación Terminal'}
+            {gpsEnVivo ? 'GPS Satelital Activo' : 'GPS en Segundo Plano'}
           </span>
         </div>
 
@@ -272,92 +309,52 @@ export default function DriverHome() {
           />
         </div>
 
-        {/* Barra de telemetría y acciones del mapa */}
-        <div className="p-3.5 bg-[#07080a] border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+        {/* Barra de telemetría sin botón de actualizar GPS */}
+        <div className="p-3.5 bg-[#07080a] border-t border-white/[0.08] flex items-center justify-between gap-2 text-xs font-mono">
           <div className="flex items-center gap-1.5 text-slate-300 truncate">
             <MapPin className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span className="truncate">
-              {mapCoords.lat.toFixed(4)}°, {mapCoords.lng.toFixed(4)}° • {currentTerminal}
+            <span className="truncate font-bold">
+              {currentUbicacion}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleActualizarGPS}
-              disabled={buscandoGPS}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-white/10 text-[11px] font-bold cursor-pointer transition-colors"
-            >
-              {buscandoGPS ? 'Buscando...' : 'Centrar GPS'}
-            </button>
-            <a
-              href={`https://www.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1 transition-colors"
-            >
-              <span>Ver App</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+          <a
+            href={`https://www.google.com/maps?q=${mapCoords.lat},${mapCoords.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1 transition-colors shrink-0"
+          >
+            <span>Ver en Maps</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       </section>
 
-      {/* 3. Tarjeta Cockpit de Unidad Asignada con Flujo Horizontal Correcto */}
+      {/* 3. Tarjeta Cockpit de la Unidad Seleccionada */}
       <div className="w-full cockpit-panel rounded-3xl border border-white/[0.08] overflow-hidden shadow-2xl">
-        <div className="w-full p-4 sm:p-5 border-b border-white/[0.08] flex flex-col gap-3.5">
-          {/* Fila 1: Ícono, Nombre Completo del Modelo y Placa */}
-          <div className="w-full flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-2xl bg-[#ff6363]/15 border border-[#ff6363]/40 text-[#ff6363] flex items-center justify-center font-bold shrink-0 shadow-inner">
-                <Truck className="w-5 h-5 text-[#ff6363]" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] text-[#8e939e] font-bold uppercase tracking-wider font-mono">
-                  Unidad Asignada • {myVehicle?.tipo || 'Pickup 4x4'} ({myVehicle?.traccion || '4x4'})
-                </div>
-                <h2 className="text-base sm:text-lg font-black text-white font-sans tracking-tight whitespace-normal leading-snug">
-                  {myVehicle?.marca || 'Toyota'} {myVehicle?.modelo || 'Hilux 4x4'}
-                </h2>
-                <div className="text-[11px] text-[#626773] font-mono mt-0.5">
-                  {myVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
-                </div>
-              </div>
+        <div className="w-full p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-2xl bg-[#ff6363]/15 border border-[#ff6363]/40 text-[#ff6363] flex items-center justify-center font-bold shrink-0 shadow-inner">
+              <Truck className="w-5 h-5 text-[#ff6363]" />
             </div>
-
-            {/* Badge de Placa */}
-            <div className="shrink-0">
-              <span className="font-mono font-black text-sm sm:text-base text-[#ff6363] px-3.5 py-1.5 rounded-2xl telemetry-well border border-[#ff6363]/50 tracking-wider shadow-md inline-block">
-                {myVehicle?.placa || 'W4E-892'}
-              </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] text-[#8e939e] font-bold uppercase tracking-wider font-mono">
+                {myVehicle?.tipoDetalle || `${myVehicle?.tipo} • ${myVehicle?.codigo || 'VIP CAR'}`}
+              </div>
+              <h2 className="text-base sm:text-lg font-black text-white font-sans tracking-tight whitespace-normal leading-snug">
+                {myVehicle?.marca || 'Unidad'} {myVehicle?.modelo || ''}
+              </h2>
+              <div className="text-[11px] text-cyan-400 font-mono mt-0.5 truncate">
+                {selectedService}
+              </div>
             </div>
           </div>
 
-          {/* Fila 2: Selector Rápido de Flota */}
-          <div className="w-full pt-2.5 border-t border-white/[0.06] flex items-center justify-between gap-2.5 flex-wrap">
-            <label htmlFor="select-unidad-home" className="text-[10px] text-[#8e939e] font-mono uppercase font-bold shrink-0">
-              Cambiar unidad:
-            </label>
-            <div className="relative flex-1 min-w-[200px]">
-              <select
-                id="select-unidad-home"
-                value={myVehicle?.placa || ''}
-                onChange={(e) => setSelectedVehiclePlaca(e.target.value)}
-                className="w-full bg-[#07080a] border border-white/[0.12] hover:border-[#ff6363]/50 focus:border-[#ff6363] rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none cursor-pointer appearance-none pr-8 truncate"
-                title="Seleccionar otra unidad de la flota"
-              >
-                {(vehicles || []).map((v, idx) => (
-                  <option key={v.id || v.placa} value={v.placa} className="bg-[#0e1115] text-white py-1">
-                    #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#ff6363]">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
+          {/* Badge de Placa */}
+          <div className="shrink-0">
+            <span className="font-mono font-black text-sm sm:text-base text-[#ff6363] px-3.5 py-1.5 rounded-2xl telemetry-well border border-[#ff6363]/50 tracking-wider shadow-md inline-block">
+              {myVehicle?.placa || selectedVehiclePlaca}
+            </span>
           </div>
         </div>
 
@@ -367,10 +364,10 @@ export default function DriverHome() {
             <div className="telemetry-well p-3.5 rounded-2xl">
               <div className="flex items-center gap-1.5 text-[#626773] text-xs mb-1 font-mono">
                 <Gauge className="w-3.5 h-3.5 text-[#ff6363]" />
-                <span className="font-bold text-[10px] uppercase">Odómetro</span>
+                <span className="font-bold text-[10px] uppercase">Odómetro Base</span>
               </div>
               <div className="text-2xl font-mono font-black text-white">
-                {(myVehicle?.odometroActual ?? 0).toLocaleString()} <span className="text-xs font-normal text-[#626773]">km</span>
+                {(myVehicle?.odometroActual ?? 45280).toLocaleString()} <span className="text-xs font-normal text-[#626773]">km</span>
               </div>
             </div>
 
@@ -397,16 +394,16 @@ export default function DriverHome() {
               <ShieldCheck className="w-3.5 h-3.5 text-[#ff6363]" />
               Semáforo Preventivo de Mantenimiento:
             </div>
-            <SemaforoBadge odometro={myVehicle?.odometroActual ?? 0} />
+            <SemaforoBadge odometro={myVehicle?.odometroActual ?? 45280} />
           </div>
 
-          {/* Equipamiento Minero */}
+          {/* Equipamiento Instalado */}
           <div className="pt-2 border-t border-white/[0.08]">
             <div className="text-[9px] uppercase font-mono tracking-wider text-[#626773] mb-1.5 font-bold">
-              Equipamiento Instalado:
+              Equipamiento Registrado:
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {(myVehicle?.equipamiento || []).map((eq, idx) => (
+              {(myVehicle?.equipamiento || ['Extintor 6kg', 'Botiquín', 'Tacos (2)', 'Conos (2)', 'Kit Antiderrame']).map((eq, idx) => (
                 <span
                   key={idx}
                   className="px-2.5 py-0.5 rounded-full text-[10px] font-mono telemetry-well text-[#949aa6] border border-white/[0.08]"
@@ -432,7 +429,7 @@ export default function DriverHome() {
           >
             <ClipboardCheck className="w-6 h-6 text-[#59d499] mb-1 group-hover:scale-108 transition-transform" />
             <span className="text-xs font-black text-white font-mono">INICIAR TURNO</span>
-            <span className="text-[10px] text-[#626773] font-mono">Check-in & Odómetro</span>
+            <span className="text-[10px] text-[#626773] font-mono">Checklist 43 Puntos & Odómetro</span>
           </Link>
 
           <Link
@@ -441,7 +438,7 @@ export default function DriverHome() {
           >
             <ClipboardX className="w-6 h-6 text-[#f59e0b] mb-1 group-hover:scale-108 transition-transform" />
             <span className="text-xs font-black text-white font-mono">FINALIZAR TURNO</span>
-            <span className="text-[10px] text-[#626773] font-mono">Check-out & Entrega</span>
+            <span className="text-[10px] text-[#626773] font-mono">Check-out & Odómetro Cierre</span>
           </Link>
         </div>
 
@@ -459,7 +456,7 @@ export default function DriverHome() {
                 Reportar Avería o Choque (SOS)
               </div>
               <div className="text-[10px] text-white/80">
-                Alerta inmediata con foto y GPS al centro de control
+                Llamada directa de auxilio (+51 940 341 196) y alerta satelital
               </div>
             </div>
           </div>
@@ -484,12 +481,14 @@ export default function DriverHome() {
                 className="telemetry-well p-3 rounded-2xl flex items-center justify-between text-xs font-mono"
               >
                 <div>
-                  <div className="text-white font-bold">{log?.tipoRegistro}</div>
-                  <div className="text-[10px] text-[#626773]">{log?.fechaHora} • {log?.proyecto}</div>
+                  <div className="text-white font-bold">{log?.tipoRegistro || log?.tipoEvento}</div>
+                  <div className="text-[10px] text-[#626773]">
+                    {log?.fechaHora} • [{log?.placa}] • {log?.servicio || log?.proyecto}
+                  </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-white font-bold">{log?.odometro?.toLocaleString()} km</div>
-                  <span className="text-[9px] text-[#59d499]">{log?.checklistEstado}</span>
+                  <div className="text-white font-bold">{(log?.odometro || log?.kilometraje)?.toLocaleString()} km</div>
+                  <span className="text-[9px] text-[#59d499]">{log?.checklistResumen || log?.checklistEstado}</span>
                 </div>
               </div>
             ))
@@ -497,14 +496,14 @@ export default function DriverHome() {
         </div>
       </div>
 
-      {/* Modal de Configuración de Conductor y Terminal */}
+      {/* Modal de Configuración Rápida de Turno */}
       {modalConfigAbierto && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="cockpit-panel border border-white/20 p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-sm font-bold text-white font-mono flex items-center gap-2">
                 <Settings className="w-4 h-4 text-[#ff6363]" />
-                Configurar Turno Activo
+                Ajustes Rápidos de Turno
               </h3>
               <button
                 type="button"
@@ -516,13 +515,12 @@ export default function DriverHome() {
             </div>
 
             {/* Input de Conductor en Modal */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-xs font-mono font-bold text-slate-300 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-[#ff6363]" />
                   Nombre del Conductor
                 </span>
-                <span className="text-[10px] text-[#59d499] font-mono">En tiempo real</span>
               </label>
               <input
                 type="text"
@@ -533,82 +531,27 @@ export default function DriverHome() {
               />
             </div>
 
-            {/* Selector y agregado de Terminal */}
-            <div className="space-y-2 pt-2 border-t border-white/10">
+            {/* Input de Ubicación en Modal */}
+            <div className="space-y-1.5">
               <label className="text-xs font-mono font-bold text-slate-300 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-[#ff6363]" />
-                Terminal o Ubicación Base
+                <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                Ubicación Manual
               </label>
-              <select
-                value={currentTerminal}
-                onChange={(e) => setCurrentTerminal(e.target.value)}
-                className="w-full telemetry-well border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono"
-              >
-                {(availableTerminals || []).map((t) => (
-                  <option key={t} value={t} className="bg-[#0b0d11]">
-                    {t}
-                  </option>
-                ))}
-              </select>
-
-              {!mostrarAgregarTerminal ? (
-                <button
-                  type="button"
-                  onClick={() => setMostrarAgregarTerminal(true)}
-                  className="text-[11px] font-mono text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" /> Agregar nueva ubicación a la lista
-                </button>
-              ) : (
-                <form onSubmit={handleGuardarNuevoTerminal} className="flex gap-2 pt-1">
-                  <input
-                    type="text"
-                    placeholder="Ej: Base Huancayo Sur"
-                    value={nuevoTerminalInput}
-                    onChange={(e) => setNuevoTerminalInput(e.target.value)}
-                    className="flex-1 telemetry-well border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white font-mono"
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold flex items-center gap-1"
-                  >
-                    <Check className="w-3 h-3" /> Guardar
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* Selector de Unidad de Flota en Modal */}
-            <div className="space-y-2 pt-2 border-t border-white/10">
-              <label className="text-xs font-mono font-bold text-slate-300 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-[#ff6363]" />
-                  Vehículo de Flota Asignado
-                </span>
-                <span className="text-[10px] text-cyan-400 font-mono">
-                  {(vehicles || []).length} unidades
-                </span>
-              </label>
-              <select
-                value={myVehicle?.placa || ''}
-                onChange={(e) => setSelectedVehiclePlaca(e.target.value)}
-                className="w-full telemetry-well border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono"
-              >
-                {(vehicles || []).map((v, idx) => (
-                  <option key={v.id || v.placa} value={v.placa} className="bg-[#0b0d11]">
-                    #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="text"
+                value={currentUbicacion}
+                onChange={(e) => setCurrentUbicacion(e.target.value)}
+                placeholder="Ej: Cochera Huancayo, Aeropuerto..."
+                className="w-full telemetry-well border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-cyan-400 outline-none"
+              />
             </div>
 
             <button
               type="button"
               onClick={() => setModalConfigAbierto(false)}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white font-mono text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors shadow-lg"
+              className="w-full py-3 rounded-2xl btn-cockpit-action text-white font-mono text-xs font-bold uppercase tracking-wider cursor-pointer shadow-lg"
             >
-              Listo / Continuar
+              Listo / Guardar
             </button>
           </div>
         </div>

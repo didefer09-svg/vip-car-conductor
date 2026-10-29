@@ -6,12 +6,21 @@ import {
   Camera,
   ArrowLeft,
   Truck,
-  Phone,
+  PhoneCall,
   CheckCircle2,
   Upload,
   User,
-  AlertTriangle
+  MapPin,
+  Briefcase
 } from 'lucide-react';
+import SearchableSelect from './SearchableSelect';
+import {
+  OFFICIAL_UNIDADES,
+  OFFICIAL_SERVICIOS,
+  DEFAULT_PLACA,
+  DEFAULT_SERVICIO,
+  DEFAULT_UBICACION,
+} from '../data/fleetData';
 
 export default function ReportarAveria() {
   const navigate = useNavigate();
@@ -19,87 +28,68 @@ export default function ReportarAveria() {
     vehicles,
     reportarAveriaEmergencia,
     currentDriver,
-    currentTerminal,
-    terminalCoordinates,
     selectedVehiclePlaca,
     setSelectedVehiclePlaca,
     selectedVehicle,
+    selectedService,
+    setSelectedService,
+    currentUbicacion,
+    setCurrentUbicacion,
   } = useFleet();
 
   const fallbackVehicle = {
-    placa: 'W4E-892',
+    placa: DEFAULT_PLACA,
     marca: 'Toyota',
-    modelo: 'Hilux 4x4',
-    tipo: 'Camioneta Pick-up',
+    modelo: 'Hilux 4x4 (UM-01)',
+    tipo: 'Camioneta',
     empresaAsignada: 'VIP CAR Huancayo',
+    odometroActual: 45280,
+    nivelCombustible: 75,
   };
-  const assignedVehicle = selectedVehicle || (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) || (vehicles && vehicles[0]) || fallbackVehicle;
 
-  const [tipoFalla, setTipoFalla] = useState('Falla mecánica');
+  const assignedVehicle =
+    selectedVehicle ||
+    (vehicles || []).find((v) => v?.placa === selectedVehiclePlaca) ||
+    (vehicles && vehicles[0]) ||
+    fallbackVehicle;
+
+  // Estados del formulario
+  const [servicio, setServicio] = useState(selectedService || DEFAULT_SERVICIO);
+  const [ubicacionManual, setUbicacionManual] = useState(currentUbicacion || DEFAULT_UBICACION);
+  const [tipoFalla, setTipoFalla] = useState('Falla mecánica (Motor / Caja / Tracción)');
   const [severidad, setSeveridad] = useState('Grave');
   const [descripcion, setDescripcion] = useState('');
   const [fotoPreview, setFotoPreview] = useState(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [obteniendoUbicacion, setObteniendoUbicacion] = useState(false);
-  const [errorGps, setErrorGps] = useState(null);
 
-  // Estados para validación y badge de GPS con soporte de respaldo
-  const [gpsStatus, setGpsStatus] = useState('idle'); // 'idle' | 'loading' | 'active' | 'denied' | 'fallback'
-  const [gpsCoords, setGpsCoords] = useState(null);
-
-  // Validar GPS satelital
-  const validarGPS = () => {
-    if (!('geolocation' in navigator)) {
-      setGpsStatus('denied');
-      setErrorGps('Geolocalización no soportada por el navegador.');
-      return;
-    }
-    setGpsStatus('loading');
-    setErrorGps(null);
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = {
-          latitud: pos.coords.latitude,
-          longitud: pos.coords.longitude,
-          precision: Math.round(pos.coords.accuracy),
-          timestamp: pos.timestamp,
-        };
-        setGpsCoords(coords);
-        setGpsStatus('active');
-        setErrorGps(null);
-      },
-      () => {
-        setGpsStatus('denied');
-        setErrorGps('El navegador denegó o no pudo acceder al sensor GPS.');
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-  };
-
-  // Función de respaldo para zonas sin cobertura satelital
-  const usarUbicacionRespaldo = () => {
-    const termCoords = terminalCoordinates[currentTerminal] || { latitud: -12.0651, longitud: -75.2049 };
-    const fallbackCoords = {
-      latitud: termCoords.latitud,
-      longitud: termCoords.longitud,
-      precision: 50,
-      esRespaldo: true,
-      timestamp: Date.now(),
-    };
-    setGpsCoords(fallbackCoords);
-    setGpsStatus('fallback');
-    setErrorGps(null);
-  };
+  // Captura silenciosa de coordenadas GPS en segundo plano (Requerimiento 2: Sin botón visible de GPS)
+  const [gpsCoords, setGpsCoords] = useState({
+    latitud: -12.0651,
+    longitud: -75.2049,
+    precision: 50,
+  });
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    validarGPS();
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGpsCoords({
+            latitud: pos.coords.latitude,
+            longitud: pos.coords.longitude,
+            precision: Math.round(pos.coords.accuracy),
+          });
+        },
+        () => {
+          // Mantener respaldo silencioso
+        },
+        { enableHighAccuracy: true, timeout: 6000 }
+      );
+    }
   }, []);
 
   const handleFotoChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -111,81 +101,92 @@ export default function ReportarAveria() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    let coords = gpsCoords;
-    if (!coords) {
-      setErrorGps(null);
-      setObteniendoUbicacion(true);
-      try {
-        coords = await new Promise((resolve, reject) => {
-          if (!('geolocation' in navigator)) {
-            reject(new Error('Geolocalización no soportada por el navegador.'));
-            return;
-          }
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              resolve({
-                latitud: position.coords.latitude,
-                longitud: position.coords.longitude,
-                precision: Math.round(position.coords.accuracy),
-                timestamp: position.timestamp,
-              });
-            },
-            (error) => reject(error),
-            { enableHighAccuracy: true, timeout: 8000 }
-          );
-        });
-        setGpsCoords(coords);
-        setGpsStatus('active');
-      } catch {
-        setErrorGps('Debes activar la ubicación o seleccionar la ubicación de respaldo para emitir la alerta SOS.');
-        setGpsStatus('denied');
-        setObteniendoUbicacion(false);
-        return;
-      }
-      setObteniendoUbicacion(false);
-    }
-
     setLoading(true);
+
+    const fechaHoraActual = new Date().toLocaleString('es-PE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    const targetPlaca = assignedVehicle?.placa || selectedVehiclePlaca || DEFAULT_PLACA;
+    const targetServicio = servicio || selectedService || DEFAULT_SERVICIO;
+    const targetUbicacion = ubicacionManual.trim() || currentUbicacion || DEFAULT_UBICACION;
+
+    setCurrentUbicacion(targetUbicacion);
+    setSelectedService(targetServicio);
+
+    const estadoGeneral = `Emergencia / Avería [${severidad}]`;
+    const resumenChecklist = `SOS: ${tipoFalla} (${severidad})`;
 
     try {
       await reportarAveriaEmergencia({
-        placa: assignedVehicle.placa,
-        vehiculoId: assignedVehicle.id,
+        placa: targetPlaca,
+        vehiculoId: assignedVehicle?.id,
         tipoFalla,
         severidad,
         descripcion: descripcion.trim(),
         conductor: currentDriver,
-        operacion: currentTerminal,
+        servicio: targetServicio,
+        ubicacion: targetUbicacion,
         foto: fotoPreview,
-        ubicacion: coords,
-        latitud: coords.latitud,
-        longitud: coords.longitud,
-        precision: coords.precision,
+        latitud: gpsCoords?.latitud || null,
+        longitud: gpsCoords?.longitud || null,
+        precision: gpsCoords?.precision || null,
       });
 
-      // Envío al Webhook de Google Sheets
+      // Envío completo al Webhook de Google Sheets (Requerimiento 4)
+      const payloadWebhook = {
+        'Fecha/Hora': fechaHoraActual,
+        'Acción': 'SOS',
+        'Nombre del Conductor': currentDriver,
+        'Placa seleccionada': targetPlaca,
+        'Servicio seleccionado': targetServicio,
+        'Ubicación escrita manualmente': targetUbicacion,
+        'Kilometraje': Number(assignedVehicle?.odometroActual || 0),
+        'Combustible (%)': `${assignedVehicle?.nivelCombustible || 0}%`,
+        'Estado General': estadoGeneral,
+        'Resumen del Checklist': resumenChecklist,
+        'Observaciones': descripcion.trim(),
+        'Coordenadas GPS': gpsCoords ? `${gpsCoords.latitud}, ${gpsCoords.longitud}` : 'Sin GPS',
+
+        // Claves técnicas de compatibilidad
+        fechaHora: fechaHoraActual,
+        tipoEvento: 'SOS',
+        accion: 'SOS',
+        conductor: currentDriver,
+        operador: currentDriver,
+        placa: targetPlaca,
+        servicio: targetServicio,
+        tipoServicio: targetServicio,
+        ubicacion: targetUbicacion,
+        tipoFalla,
+        severidad,
+        checklist_condicion: `${tipoFalla} [${severidad}]`,
+        estadoGeneral,
+        resumenChecklist,
+        observaciones: descripcion.trim(),
+        odometro: Number(assignedVehicle?.odometroActual || 0),
+        combustible: Number(assignedVehicle?.nivelCombustible || 0),
+        latitud: gpsCoords?.latitud || null,
+        longitud: gpsCoords?.longitud || null,
+      };
+
       try {
-        await fetch('https://script.google.com/macros/s/AKfycbz2tPas7ur3GYyWcKEPG9KaRI8QWzoV0-8xY9zuCCGK7j3Ht6M5ZFjuJA-ZP4shy5zTuQ/exec', {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
-          },
-          body: JSON.stringify({
-            tipoEvento: 'SOS',
-            operador: currentDriver,
-            placa: assignedVehicle.placa,
-            odometro: Number(assignedVehicle.odometroActual || 14750),
-            combustible: Number(assignedVehicle.nivelCombustible || 75),
-            checklist_condicion: `${tipoFalla} [${severidad}]`,
-            observaciones: descripcion.trim(),
-            tipoFalla,
-            severidad,
-            latitud: coords.latitud,
-            longitud: coords.longitud,
-          }),
-        });
+        await fetch(
+          'https://script.google.com/macros/s/AKfycbz2tPas7ur3GYyWcKEPG9KaRI8QWzoV0-8xY9zuCCGK7j3Ht6M5ZFjuJA-ZP4shy5zTuQ/exec',
+          {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify(payloadWebhook),
+          }
+        );
       } catch (webhookErr) {
         console.warn('Error al enviar al Webhook de Google Sheets:', webhookErr);
       }
@@ -202,7 +203,7 @@ export default function ReportarAveria() {
   };
 
   return (
-    <div className="space-y-4 text-[#9c9c9d]">
+    <div className="space-y-4 text-[#9c9c9d] pb-8">
       {/* Header SOS con Conductor Activo */}
       <div className="flex items-center gap-3">
         <button
@@ -213,7 +214,7 @@ export default function ReportarAveria() {
         </button>
         <div className="flex-1 truncate">
           <h1 className="text-lg font-black text-[#ff6363] flex items-center gap-1.5 font-sans">
-            <AlertOctagon className="w-5 h-5 animate-pulse" />
+            <AlertOctagon className="w-5 h-5 animate-pulse text-[#ff6363]" />
             Reporte de Avería SOS
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-[#6a6b6c] font-mono truncate">
@@ -225,146 +226,112 @@ export default function ReportarAveria() {
         </div>
       </div>
 
+      {/* Requerimiento 5: Botón Prominente de Llamada de Auxilio Inmediata */}
+      <a
+        href="tel:+51940341196"
+        className="w-full p-4 rounded-3xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-mono font-black flex items-center justify-between shadow-2xl border-2 border-red-400/40 transition-transform active:scale-98 cursor-pointer no-underline group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-black/30 flex items-center justify-center shrink-0 border border-white/20 group-hover:scale-105 transition-transform">
+            <PhoneCall className="w-6 h-6 text-white animate-bounce" />
+          </div>
+          <div>
+            <div className="text-[10px] tracking-wider uppercase opacity-90 font-bold">
+              Llamada de Auxilio Inmediata (24/7)
+            </div>
+            <div className="text-base sm:text-lg font-black tracking-wide text-white">
+              +51 940 341 196
+            </div>
+          </div>
+        </div>
+        <span className="hidden sm:inline-block px-3 py-1.5 rounded-full bg-white/20 text-xs font-bold uppercase tracking-wider">
+          Llamar ahora
+        </span>
+      </a>
+
       {success && (
-        <div className="p-3.5 rounded-full bg-[#ff6363] text-white flex items-center gap-3 shadow-lg font-mono">
-          <CheckCircle2 className="w-5 h-5 shrink-0" />
-          <div className="text-xs font-bold">
-            ¡ALERTA TRANSMITIDA! Supervisión de flota y auxilio mecánico han sido notificados.
+        <div className="p-4 rounded-2xl bg-[#ff6363] text-white flex items-center gap-3 shadow-xl font-mono animate-in fade-in">
+          <CheckCircle2 className="w-6 h-6 shrink-0" />
+          <div className="text-xs font-bold leading-relaxed">
+            ¡ALERTA TRANSMITIDA A GOOGLE SHEETS Y FIRESTORE! Supervisión de flota y auxilio mecánico han sido notificados.
           </div>
         </div>
       )}
 
-      {/* Indicador Visual de Geolocalización (Badge de Validación y Respaldo) */}
-      {gpsStatus === 'active' && gpsCoords && (
-        <div className="p-3.5 rounded-2xl bg-emerald-950/50 border border-emerald-500/50 text-emerald-400 flex items-center justify-between text-xs font-mono animate-in fade-in">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <div>
-              <div className="font-bold">GPS SOS Activo // Ubicación Precisa</div>
-              <div className="text-[11px] text-emerald-300/80">
-                {gpsCoords.latitud.toFixed(4)}°, {gpsCoords.longitud.toFixed(4)}° • Precisión ±{gpsCoords.precision || 10}m
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={validarGPS}
-            className="px-2.5 py-1 rounded-lg bg-emerald-900/60 hover:bg-emerald-800 text-white text-[10px] font-bold border border-emerald-500/40 cursor-pointer"
-          >
-            Actualizar
-          </button>
-        </div>
-      )}
-
-      {gpsStatus === 'fallback' && gpsCoords && (
-        <div className="p-3.5 rounded-2xl bg-amber-950/50 border border-amber-500/50 text-amber-400 flex items-center justify-between text-xs font-mono animate-in fade-in">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
-            <div>
-              <div className="font-bold">Ubicación de Respaldo ({currentTerminal})</div>
-              <div className="text-[11px] text-amber-300/80">
-                {gpsCoords.latitud.toFixed(4)}°, {gpsCoords.longitud.toFixed(4)}° • Cobertura contingencia
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={validarGPS}
-            className="px-2.5 py-1 rounded-lg bg-amber-900/60 hover:bg-amber-800 text-white text-[10px] font-bold border border-amber-500/40 cursor-pointer"
-          >
-            Reintentar GPS
-          </button>
-        </div>
-      )}
-
-      {gpsStatus === 'denied' && (
-        <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-500/50 text-rose-300 text-xs font-mono space-y-2 animate-in fade-in">
-          <div className="flex items-center gap-2 text-rose-400 font-bold">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>Permiso GPS denegado o satélite sin cobertura</span>
-          </div>
-          <p className="text-[11px] text-rose-200/80">
-            Puedes reintentar la conexión o activar el respaldo oficial para <strong className="text-white">{currentTerminal}</strong> para poder emitir el reporte SOS.
-          </p>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              type="button"
-              onClick={validarGPS}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-white/20 font-bold cursor-pointer"
-            >
-              Reintentar GPS
-            </button>
-            <button
-              type="button"
-              onClick={usarUbicacionRespaldo}
-              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-black font-bold border border-amber-400 cursor-pointer shadow-md"
-            >
-              ▲ Activar Respaldo ({currentTerminal})
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Unidad Afectada (Selector Dinámico) */}
-      <div className="cockpit-panel border border-[#ff6363]/40 p-4 rounded-3xl space-y-2.5">
+      {/* Selectores de Placa y Tipo de Servicio (Requerimiento 1) */}
+      <div className="cockpit-panel border border-[#ff6363]/40 p-4 rounded-3xl space-y-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Truck className="w-4 h-4 text-[#ff6363]" />
-            <div className="text-[10px] text-[#ff6363] uppercase font-mono font-bold">Unidad Afectada // SOS</div>
+            <div className="text-[10px] text-[#ff6363] uppercase font-mono font-bold">
+              Unidad Afectada // Selector Oficial
+            </div>
           </div>
           <span className="font-mono font-bold text-xs text-[#ff6363] px-2.5 py-0.5 rounded-full telemetry-well border border-[#ff6363]/40">
-            {assignedVehicle?.placa || 'W4E-892'}
+            {assignedVehicle?.placa || DEFAULT_PLACA}
           </span>
         </div>
 
-        <div className="relative">
-          <select
-            value={assignedVehicle?.placa || ''}
-            onChange={(e) => setSelectedVehiclePlaca(e.target.value)}
-            className="w-full bg-[#0a0c0e] border border-white/[0.12] rounded-xl px-3 py-2 text-xs text-[#ffffff] font-mono font-semibold focus:outline-none focus:border-[#ff6363] cursor-pointer appearance-none"
-          >
-            {(vehicles || []).map((v, idx) => (
-              <option key={v.id || v.placa} value={v.placa} className="bg-[#0e1115] text-[#ffffff]">
-                #{String(idx + 1).padStart(2, '0')} • [{v.placa}] {v.marca} {v.modelo}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#6a6b6c]">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
+        {/* Selector de Placa con buscador */}
+        <SearchableSelect
+          label="Placa de la Unidad con Falla"
+          options={OFFICIAL_UNIDADES}
+          value={assignedVehicle?.placa || selectedVehiclePlaca}
+          onChange={(newPlaca) => setSelectedVehiclePlaca(newPlaca)}
+          placeholder="Buscar placa afectada (ej. BHF-821)..."
+          icon={Truck}
+        />
 
-        <div className="w-full text-[11px] text-slate-300 font-mono whitespace-normal leading-snug pt-0.5">
-          {assignedVehicle?.marca || 'Toyota'} {assignedVehicle?.modelo || 'Hilux 4x4'} ({assignedVehicle?.tipo || 'Pickup 4x4'}) • {assignedVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
-        </div>
-      </div>
+        {/* Selector de Tipo de Servicio */}
+        <SearchableSelect
+          label="Servicio en Ejecución"
+          options={OFFICIAL_SERVICIOS}
+          value={servicio}
+          onChange={(val) => {
+            setServicio(val);
+            setSelectedService(val);
+          }}
+          placeholder="Buscar tipo de servicio..."
+          icon={Briefcase}
+        />
 
-      {/* Teléfono de Asistencia */}
-      <div className="p-3 telemetry-well border border-white/[0.08] rounded-full flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2 text-[#6a6b6c]">
-          <Phone className="w-3.5 h-3.5 text-[#ff6363]" />
-          <span className="text-[11px] font-mono">Auxilio Mecánico Junín 24/7:</span>
+        <div className="w-full telemetry-well border border-white/[0.08] p-3 rounded-2xl text-[11px] text-slate-300 font-mono whitespace-normal leading-snug">
+          {assignedVehicle?.marca || 'Toyota'} {assignedVehicle?.modelo || 'Hilux 4x4'} ({assignedVehicle?.tipo || 'Camioneta'}) • {assignedVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
         </div>
-        <a
-          href="tel:954123456"
-          className="text-xs font-bold text-[#ff6363] hover:underline font-mono"
-        >
-          954 123 456
-        </a>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Ubicación / Terminal en Texto Libre (Requerimiento 2: Sin botón de GPS) */}
+        <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c] flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+              01 // Ubicación del Incidente *
+            </label>
+            <span className="text-[10px] font-mono text-[#6a6b6c]">Texto libre</span>
+          </div>
+          <input
+            type="text"
+            required
+            value={ubicacionManual}
+            onChange={(e) => {
+              setUbicacionManual(e.target.value);
+              setCurrentUbicacion(e.target.value);
+            }}
+            placeholder="ej. Km 82 Carretera Central - Casapalca, Mina Cobriza..."
+            className="w-full telemetry-well border border-white/[0.1] rounded-2xl px-4 py-3 text-xs font-mono font-semibold text-[#ffffff] placeholder-[#6a6b6c] focus:outline-none focus:border-[#ff6363] transition-colors"
+          />
+        </div>
+
         {/* Tipo de falla */}
         <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
           <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c]">
-            01 // Tipo de Falla o Incidente *
+            02 // Tipo de Falla o Incidente *
           </label>
           <select
             value={tipoFalla}
             onChange={(e) => setTipoFalla(e.target.value)}
-            className="w-full telemetry-well border border-white/[0.08] rounded-full p-2.5 text-xs text-[#ffffff] focus:outline-none focus:border-[#ff6363] font-mono cursor-pointer"
+            className="w-full telemetry-well border border-white/[0.08] rounded-2xl p-3 text-xs text-[#ffffff] focus:outline-none focus:border-[#ff6363] font-mono cursor-pointer"
           >
             <option value="Falla mecánica (Motor / Caja / Tracción)">Falla mecánica (Motor / Caja / Tracción)</option>
             <option value="Falla en sistema de frenos">Falla en sistema de frenos</option>
@@ -379,7 +346,7 @@ export default function ReportarAveria() {
         {/* Severidad */}
         <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
           <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c]">
-            02 // Nivel de Severidad *
+            03 // Nivel de Severidad *
           </label>
           <div className="grid grid-cols-3 gap-2">
             {[
@@ -391,9 +358,9 @@ export default function ReportarAveria() {
                 type="button"
                 key={sev.id}
                 onClick={() => setSeveridad(sev.id)}
-                className={`p-2.5 rounded-full border text-center transition-all cursor-pointer ${
+                className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
                   severidad === sev.id
-                    ? 'bg-[#ff6363] text-white font-bold border-[#ff6363] shadow-xs'
+                    ? 'bg-[#ff6363] text-white font-bold border-[#ff6363] shadow-md'
                     : 'telemetry-well text-[#9c9c9d] border-white/[0.08] hover:border-white/[0.2]'
                 }`}
               >
@@ -407,24 +374,29 @@ export default function ReportarAveria() {
         {/* Detalle */}
         <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-1.5">
           <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c]">
-            03 // Detalle de la Avería *
+            04 // Detalle de la Avería *
           </label>
           <textarea
             required
             rows={3}
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Describa el ruido, rotura, impacto o motivo del paro..."
-            className="w-full telemetry-well border border-white/[0.08] rounded-2xl p-2 text-xs text-[#ffffff] focus:outline-none focus:border-[#ff6363] font-mono"
+            placeholder="Describa el ruido, rotura, impacto, fuga o motivo del auxilio mecánico..."
+            className="w-full telemetry-well border border-white/[0.08] rounded-2xl p-3 text-xs text-[#ffffff] focus:outline-none focus:border-[#ff6363] font-mono placeholder-[#6a6b6c]"
           />
         </div>
 
-        {/* Foto de Evidencia */}
+        {/* Foto de Evidencia (Requerimiento 5: Sin foto obligatoria, totalmente opcional) */}
         <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
-          <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c] flex items-center gap-1.5">
-            <Camera className="w-3.5 h-3.5 text-[#ff6363]" />
-            04 // Foto de Evidencia
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c] flex items-center gap-1.5">
+              <Camera className="w-3.5 h-3.5 text-[#ff6363]" />
+              05 // Foto de Evidencia
+            </label>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+              Opcional
+            </span>
+          </div>
 
           <label className="cursor-pointer flex flex-col items-center justify-center p-4 border border-dashed border-white/[0.15] hover:border-white/[0.3] rounded-3xl telemetry-well transition-colors">
             {fotoPreview ? (
@@ -441,8 +413,8 @@ export default function ReportarAveria() {
                 <div className="w-8 h-8 rounded-full telemetry-well border border-white/[0.1] text-[#9c9c9d] flex items-center justify-center mx-auto">
                   <Upload className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-bold text-[#ffffff]">Tomar foto o subir archivo</div>
-                <div className="text-[10px] text-[#6a6b6c] font-mono">JPG, PNG directa de cámara</div>
+                <div className="text-xs font-bold text-[#ffffff]">Tomar foto o adjuntar (Opcional)</div>
+                <div className="text-[10px] text-[#6a6b6c] font-mono">Puedes enviar el SOS sin foto para mayor rapidez</div>
               </div>
             )}
             <input
@@ -455,30 +427,15 @@ export default function ReportarAveria() {
           </label>
         </div>
 
-        {/* Alerta de Error de GPS */}
-        {errorGps && gpsStatus !== 'fallback' && (
-          <div className="p-4 rounded-2xl bg-[#2d0e14] border border-[#ff6363] text-[#ff6363] flex items-start gap-3 text-xs font-mono animate-in fade-in">
-            <AlertOctagon className="w-5 h-5 shrink-0 text-[#ff6363] mt-0.5" />
-            <div>
-              <strong className="block text-white font-bold mb-0.5">Ubicación Requerida</strong>
-              <span>{errorGps}</span>
-            </div>
-          </div>
-        )}
-
         {/* Botón de Emergencia Rojo Racing */}
         <button
           type="submit"
-          disabled={loading || obteniendoUbicacion || success}
-          className="w-full py-4 rounded-full bg-[#ff6363] hover:bg-[#e11d48] text-white font-black text-sm shadow-lg transition-colors flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer font-mono"
+          disabled={loading || success}
+          className="w-full py-4 rounded-full bg-[#ff6363] hover:bg-[#e11d48] text-white font-black text-sm shadow-2xl transition-colors flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer font-mono sticky bottom-4 z-10 backdrop-blur-md"
         >
           <AlertOctagon className="w-4 h-4" />
           <span>
-            {obteniendoUbicacion
-              ? 'Obteniendo ubicación...'
-              : loading
-              ? 'TRANSMITIENDO ALERTA SOS...'
-              : 'ENVIAR REPORTE DE EMERGENCIA'}
+            {loading ? 'TRANSMITIENDO ALERTA SOS A SHEETS Y FIRESTORE...' : 'ENVIAR REPORTE DE EMERGENCIA'}
           </span>
         </button>
       </form>
