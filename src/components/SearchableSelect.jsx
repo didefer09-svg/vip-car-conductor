@@ -81,7 +81,7 @@ export default function SearchableSelect({
         id={id}
         type="button"
         onClick={() => setAbierto(!abierto)}
-        className="w-full bg-[#0a0c0e] hover:bg-[#111317] border border-white/[0.12] hover:border-[#ff6363]/50 focus:border-[#ff6363] rounded-2xl px-3.5 py-3 text-left flex items-center justify-between gap-3 transition-colors cursor-pointer shadow-md group"
+        className="w-full bg-[#0a0c0e] hover:bg-[#111317] border border-white/[0.12] hover:border-[#ff6363]/50 focus:border-[#ff6363] rounded-2xl px-4 py-3 min-h-[52px] text-left flex items-center justify-between gap-3 leading-relaxed transition-colors cursor-pointer shadow-md group"
       >
         <div className="min-w-0 flex-1">
           <div className="text-xs sm:text-sm font-bold text-white truncate font-mono">

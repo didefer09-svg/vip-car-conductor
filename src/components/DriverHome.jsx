@@ -20,7 +20,8 @@ import {
   Settings,
   Check,
   Download,
-  Briefcase
+  Briefcase,
+  PhoneCall
 } from 'lucide-react';
 import SemaforoBadge from './SemaforoBadge';
 
@@ -333,26 +334,44 @@ export default function DriverHome() {
           </Link>
         </div>
 
-        {/* Botón SOS Cápsula */}
-        <Link
-          to="/conductor/averia"
-          className="w-full flex items-center justify-between p-4 px-6 rounded-full bg-gradient-to-r from-[#e11d48] to-[#be123c] hover:from-[#ff6363] hover:to-[#e11d48] text-white shadow-xl transition-all min-h-[60px] active:scale-98 border border-white/20 cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-black/30">
-              <AlertOctagon className="w-5 h-5 text-white animate-pulse" />
-            </div>
-            <div className="text-left font-mono">
-              <div className="text-xs font-black uppercase tracking-wider">
-                Reportar Avería o Choque (SOS)
+        {/* Botón SOS Cápsula con llamada telefónica directa */}
+        <div className="space-y-2">
+          <a
+            href="tel:983592452"
+            className="w-full flex items-center justify-between p-4 px-6 rounded-full bg-gradient-to-r from-[#e11d48] to-[#be123c] hover:from-[#ff6363] hover:to-[#e11d48] text-white shadow-xl transition-all min-h-[60px] active:scale-98 border border-white/20 cursor-pointer no-underline group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-black/30 group-hover:scale-105 transition-transform">
+                <AlertOctagon className="w-5 h-5 text-white animate-pulse" />
               </div>
-              <div className="text-[10px] text-white/80">
-                Llamada directa de auxilio (+51 940 341 196) y soporte 24/7
+              <div className="text-left font-mono">
+                <div className="text-xs font-black uppercase tracking-wider">
+                  Reportar Avería o Choque (SOS)
+                </div>
+                <div className="text-[10px] text-white/90 flex items-center gap-1.5">
+                  <PhoneCall className="w-3 h-3 text-emerald-400" />
+                  <span>Llamada directa de auxilio (983592452) y soporte 24/7</span>
+                </div>
               </div>
             </div>
-          </div>
-          <ArrowRight className="w-5 h-5 text-white" />
-        </Link>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline-block px-3 py-1 rounded-full bg-white/20 text-[10px] font-bold uppercase tracking-wider font-mono">
+                Llamar
+              </span>
+              <PhoneCall className="w-4 h-4 text-white animate-bounce" />
+            </div>
+          </a>
+
+          <Link
+            to="/conductor/averia"
+            className="w-full flex items-center justify-between p-2.5 px-4 rounded-2xl telemetry-well border border-white/[0.08] hover:border-red-500/40 text-[#9c9c9d] hover:text-white transition-all text-xs font-mono"
+          >
+            <span className="text-[11px]">¿Deseas enviar formulario de avería digital?</span>
+            <span className="text-[#ff6363] font-bold flex items-center gap-1 text-[11px]">
+              Formulario SOS <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+          </Link>
+        </div>
       </div>
 
       {/* 5. Historial Reciente */}

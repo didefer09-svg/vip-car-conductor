@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   User,
   MapPin,
-  Briefcase
+  Briefcase,
+  ChevronDown
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import {
@@ -60,7 +61,7 @@ export default function ReportarAveria() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Captura silenciosa de coordenadas GPS en segundo plano (Requerimiento 2: Sin botón visible de GPS)
+  // Captura silenciosa de coordenadas GPS en segundo plano
   const [gpsCoords, setGpsCoords] = useState({
     latitud: -12.0651,
     longitud: -75.2049,
@@ -124,7 +125,7 @@ export default function ReportarAveria() {
         precision: gpsCoords?.precision || null,
       });
 
-      // Envío completo al Webhook de Google Sheets (Requerimiento 4)
+      // Envío completo al Webhook de Google Sheets
       const payloadWebhook = {
         'Fecha/Hora': fechaHoraActual,
         'Acción': 'SOS',
@@ -190,11 +191,11 @@ export default function ReportarAveria() {
 
   return (
     <div className="space-y-4 text-[#9c9c9d] pb-8">
-      {/* Header SOS con Conductor Activo */}
+      {/* Cabecera con Conductor Activo */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate('/conductor')}
-          className="p-2 rounded-full telemetry-well border border-white/[0.08] text-[#9c9c9d] hover:text-[#ffffff] cursor-pointer"
+          className="p-2 rounded-full telemetry-well border border-white/[0.08] text-[#9c9c9d] hover:text-white transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -203,8 +204,8 @@ export default function ReportarAveria() {
             <AlertOctagon className="w-5 h-5 animate-pulse text-[#ff6363]" />
             Reporte de Avería SOS
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[#6a6b6c] font-mono truncate">
-            <span className="flex items-center gap-1 text-[#ff6363] truncate">
+          <div className="flex items-center gap-2 text-xs text-[#8e939e] font-mono truncate">
+            <span className="flex items-center gap-1 text-[#ff6363] truncate font-medium">
               <User className="w-3 h-3" />
               {currentDriver || 'Conductor no especificado'}
             </span>
@@ -216,28 +217,28 @@ export default function ReportarAveria() {
         <div className="p-4 rounded-2xl bg-[#ff6363] text-white flex items-center gap-3 shadow-xl font-mono animate-in fade-in">
           <CheckCircle2 className="w-6 h-6 shrink-0" />
           <div className="text-xs font-bold leading-relaxed">
-            ¡ALERTA TRANSMITIDA A GOOGLE SHEETS Y FIRESTORE! Supervisión de flota y auxilio mecánico han sido notificados.
+            ¡Alerta transmitida con éxito! Supervisión de flota y auxilio mecánico han sido notificados.
           </div>
         </div>
       )}
 
-      {/* Selectores de Placa y Tipo de Servicio (Requerimiento 1) */}
+      {/* Selectores de Placa y Tipo de Servicio */}
       <div className="cockpit-panel border border-[#ff6363]/40 p-4 rounded-3xl space-y-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Truck className="w-4 h-4 text-[#ff6363]" />
-            <div className="text-[10px] text-[#ff6363] uppercase font-mono font-bold">
-              Unidad Afectada // Selector Oficial
+            <div className="text-xs text-white font-mono font-bold">
+              Unidad Asignada
             </div>
           </div>
-          <span className="font-mono font-bold text-xs text-[#ff6363] px-2.5 py-0.5 rounded-full telemetry-well border border-[#ff6363]/40">
+          <span className="font-mono font-bold text-xs text-[#ff6363] px-2.5 py-1 rounded-full telemetry-well border border-[#ff6363]/40">
             {assignedVehicle?.placa || DEFAULT_PLACA}
           </span>
         </div>
 
         {/* Selector de Placa con buscador */}
         <SearchableSelect
-          label="Placa de la Unidad con Falla"
+          label="Placa de la Unidad"
           options={OFFICIAL_UNIDADES}
           value={assignedVehicle?.placa || selectedVehiclePlaca}
           onChange={(newPlaca) => setSelectedVehiclePlaca(newPlaca)}
@@ -258,60 +259,68 @@ export default function ReportarAveria() {
           icon={Briefcase}
         />
 
-        <div className="w-full telemetry-well border border-white/[0.08] p-3 rounded-2xl text-[11px] text-slate-300 font-mono whitespace-normal leading-snug">
+        <div className="w-full telemetry-well border border-white/[0.08] p-3.5 rounded-2xl text-xs text-slate-300 font-mono whitespace-normal leading-relaxed">
           {assignedVehicle?.marca || 'Toyota'} {assignedVehicle?.modelo || 'Hilux 4x4'} ({assignedVehicle?.tipo || 'Camioneta'}) • {assignedVehicle?.empresaAsignada || 'VIP CAR Huancayo'}
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Ubicación / Terminal en Texto Libre (Requerimiento 2: Sin botón de GPS) */}
+        {/* 01. Ubicación del Incidente */}
         <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c] flex items-center gap-1.5">
+            <label className="text-xs font-mono font-bold text-slate-200 flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-              01 // Ubicación del Incidente *
+              01. Ubicación del Incidente *
             </label>
-            <span className="text-[10px] font-mono text-[#6a6b6c]">Texto libre</span>
+            <span className="text-[11px] font-mono text-[#8e939e]">Texto libre</span>
           </div>
-          <input
-            type="text"
-            required
-            value={ubicacionManual}
-            onChange={(e) => {
-              setUbicacionManual(e.target.value);
-              setCurrentUbicacion(e.target.value);
-            }}
-            placeholder="ej. Km 82 Carretera Central - Casapalca, Mina Cobriza..."
-            className="w-full telemetry-well border border-white/[0.1] rounded-2xl px-4 py-3 text-xs font-mono font-semibold text-[#ffffff] placeholder-[#6a6b6c] focus:outline-none focus:border-[#ff6363] transition-colors"
-          />
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              required
+              value={ubicacionManual}
+              onChange={(e) => {
+                setUbicacionManual(e.target.value);
+                setCurrentUbicacion(e.target.value);
+              }}
+              placeholder="Ej. Km 82 Carretera Central - Casapalca, Mina Cobriza..."
+              className="w-full bg-[#07080a] telemetry-well border border-white/[0.12] focus:border-[#ff6363] rounded-2xl px-4 py-3 min-h-[50px] text-sm font-mono text-white placeholder-slate-500 focus:outline-none leading-relaxed transition-all shadow-inner"
+            />
+          </div>
         </div>
 
-        {/* Tipo de falla */}
+        {/* 02. Tipo de Falla o Incidente */}
         <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
-          <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c]">
-            02 // Tipo de Falla o Incidente *
+          <label className="text-xs font-mono font-bold text-slate-200 flex items-center gap-1.5">
+            <AlertOctagon className="w-3.5 h-3.5 text-[#ff6363]" />
+            02. Tipo de Falla o Incidente *
           </label>
-          <select
-            value={tipoFalla}
-            onChange={(e) => setTipoFalla(e.target.value)}
-            className="w-full telemetry-well border border-white/[0.08] rounded-2xl p-3 text-xs text-[#ffffff] focus:outline-none focus:border-[#ff6363] font-mono cursor-pointer"
-          >
-            <option value="Falla mecánica (Motor / Caja / Tracción)">Falla mecánica (Motor / Caja / Tracción)</option>
-            <option value="Falla en sistema de frenos">Falla en sistema de frenos</option>
-            <option value="Neumático reventado / pinchado">Neumático reventado / pinchado</option>
-            <option value="Accidente / Choque en operación o ruta">Accidente / Choque en operación o ruta</option>
-            <option value="Falla eléctrica / Pértiga / Circulina">Falla eléctrica / Pértiga / Circulina</option>
-            <option value="Fuga de refrigerante o aceite">Fuga de refrigerante o aceite</option>
-            <option value="Otro incidente">Otro incidente</option>
-          </select>
+          <div className="relative flex items-center">
+            <select
+              value={tipoFalla}
+              onChange={(e) => setTipoFalla(e.target.value)}
+              className="w-full bg-[#07080a] telemetry-well border border-white/[0.12] focus:border-[#ff6363] rounded-2xl px-4 py-3 min-h-[50px] text-sm text-white focus:outline-none font-mono cursor-pointer appearance-none leading-relaxed pr-10 transition-all shadow-inner"
+            >
+              <option value="Falla mecánica (Motor / Caja / Tracción)">Falla mecánica (Motor / Caja / Tracción)</option>
+              <option value="Falla en sistema de frenos">Falla en sistema de frenos</option>
+              <option value="Neumático reventado / pinchado">Neumático reventado / pinchado</option>
+              <option value="Accidente / Choque en operación o ruta">Accidente / Choque en operación o ruta</option>
+              <option value="Falla eléctrica / Pértiga / Circulina">Falla eléctrica / Pértiga / Circulina</option>
+              <option value="Fuga de refrigerante o aceite">Fuga de refrigerante o aceite</option>
+              <option value="Otro incidente">Otro incidente</option>
+            </select>
+            <div className="pointer-events-none absolute right-4 flex items-center text-[#8e939e]">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
         </div>
 
-        {/* Severidad */}
+        {/* 03. Nivel de Severidad */}
         <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
-          <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c]">
-            03 // Nivel de Severidad *
+          <label className="text-xs font-mono font-bold text-slate-200">
+            03. Nivel de Severidad *
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5">
             {[
               { id: 'Leve', desc: 'Continúa operativo' },
               { id: 'Moderada', desc: 'Requiere taller' },
@@ -321,23 +330,23 @@ export default function ReportarAveria() {
                 type="button"
                 key={sev.id}
                 onClick={() => setSeveridad(sev.id)}
-                className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                className={`px-4 py-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[56px] leading-relaxed ${
                   severidad === sev.id
-                    ? 'bg-[#ff6363] text-white font-bold border-[#ff6363] shadow-md'
-                    : 'telemetry-well text-[#9c9c9d] border-white/[0.08] hover:border-white/[0.2]'
+                    ? 'bg-[#ff6363] text-white font-bold border-[#ff6363] shadow-lg scale-[1.02]'
+                    : 'telemetry-well text-[#9c9c9d] border-white/[0.08] hover:border-white/[0.2] hover:text-white'
                 }`}
               >
                 <div className="text-xs font-mono font-bold">{sev.id}</div>
-                <div className="text-[10px] opacity-80 font-mono">{sev.desc}</div>
+                <div className="text-[10px] opacity-80 font-mono mt-0.5">{sev.desc}</div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Detalle */}
-        <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-1.5">
-          <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#6a6b6c]">
-            04 // Detalle de la Avería *
+        {/* 04. Detalle de la Avería */}
+        <div className="cockpit-panel border border-white/[0.08] p-4.5 rounded-3xl space-y-2">
+          <label className="text-xs font-mono font-bold text-slate-200">
+            04. Detalle de la Avería *
           </label>
           <textarea
             required
@@ -345,67 +354,29 @@ export default function ReportarAveria() {
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Describa el ruido, rotura, impacto, fuga o motivo del auxilio mecánico..."
-            className="w-full telemetry-well border border-white/[0.08] rounded-2xl p-3 text-xs text-[#ffffff] focus:outline-none focus:border-[#ff6363] font-mono placeholder-[#6a6b6c]"
+            className="w-full bg-[#07080a] telemetry-well border border-white/[0.12] focus:border-[#ff6363] rounded-2xl px-4 py-3 text-sm text-white focus:outline-none font-mono placeholder-slate-500 leading-relaxed transition-all shadow-inner resize-none"
           />
-        </div>
-
-        {/* Panel Destacado de Contacto de Auxilio Inmediato (En reemplazo de foto de evidencia) */}
-        <div className="cockpit-panel border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-950/40 via-[#0a120e] to-[#070c0a] p-5 rounded-3xl space-y-3.5 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner">
-                <PhoneCall className="w-5 h-5 animate-pulse" />
-              </div>
-              <div>
-                <div className="text-xs font-mono font-bold uppercase tracking-wider text-white">
-                  05 // Contacto de Auxilio Inmediato (24/7)
-                </div>
-                <div className="text-[11px] text-emerald-400/90 font-mono">
-                  Supervisión y Asistencia Mecánica en Ruta
-                </div>
-              </div>
-            </div>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-1 rounded-full font-bold">
-              Línea Activa 24h
-            </span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-black/50 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Número de Emergencia Oficial:</div>
-              <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-wider">
-                +51 940 341 196
-              </div>
-            </div>
-            <a
-              href="tel:+51940341196"
-              className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-transform cursor-pointer no-underline shrink-0 border border-emerald-400/40"
-            >
-              <PhoneCall className="w-4 h-4" />
-              <span>Llamar Ahora</span>
-            </a>
-          </div>
         </div>
 
         {/* Botones de Acción Inmediata: Llamada Directa + Enviar Reporte */}
         <div className="sticky bottom-4 z-10 space-y-2 backdrop-blur-md pt-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <a
-              href="tel:+51940341196"
-              className="w-full py-4 rounded-full bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white font-mono font-black text-xs sm:text-sm shadow-xl border border-emerald-400/40 flex items-center justify-center gap-2 active:scale-98 cursor-pointer no-underline transition-all"
+              href="tel:983592452"
+              className="w-full py-4 px-4 rounded-2xl sm:rounded-full bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white font-mono font-bold text-xs sm:text-sm shadow-xl border border-emerald-400/40 flex items-center justify-center gap-2 active:scale-98 cursor-pointer no-underline transition-all leading-relaxed"
             >
               <PhoneCall className="w-4 h-4 animate-bounce" />
-              <span>LLAMADA DIRECTA (+51 940 341 196)</span>
+              <span>Llamada Directa (983592452)</span>
             </a>
 
             <button
               type="submit"
               disabled={loading || success}
-              className="w-full py-4 rounded-full bg-[#ff6363] hover:bg-[#e11d48] text-white font-black text-xs sm:text-sm shadow-2xl transition-colors flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer font-mono"
+              className="w-full py-4 px-4 rounded-2xl sm:rounded-full bg-[#ff6363] hover:bg-[#e11d48] text-white font-bold text-xs sm:text-sm shadow-2xl transition-colors flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer font-mono leading-relaxed"
             >
               <AlertOctagon className="w-4 h-4" />
               <span>
-                {loading ? 'TRANSMITIENDO SOS...' : 'ENVIAR REPORTE DE EMERGENCIA'}
+                {loading ? 'Transmitiendo Alerta...' : 'Enviar Reporte de Emergencia'}
               </span>
             </button>
           </div>
