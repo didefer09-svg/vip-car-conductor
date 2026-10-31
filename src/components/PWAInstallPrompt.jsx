@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { usePWA } from '../context/PWAContext';
 import {
   Download,
-  WifiOff,
   RefreshCw,
   X,
   Share,
@@ -18,7 +17,6 @@ import {
 export default function PWAInstallPrompt() {
   const {
     isInstalled,
-    isOffline,
     swUpdateAvailable,
     showInstallModal,
     isIOS,
@@ -48,17 +46,7 @@ export default function PWAInstallPrompt() {
 
   return (
     <>
-      {/* 1. Indicador de Conectividad Offline (Operaciones en Socavón sin 4G) */}
-      {isOffline && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-[#231908] border-b border-[#f59e0b]/50 px-4 py-2 text-center text-xs font-mono text-[#f59e0b] flex items-center justify-center gap-2 shadow-2xl backdrop-blur-md animate-in slide-in-from-top">
-          <WifiOff className="w-4 h-4 animate-pulse shrink-0" />
-          <span>
-            <strong>Modo Offline Activo:</strong> Tu telemetría, odómetro y checklists se guardan localmente hasta recuperar señal.
-          </span>
-        </div>
-      )}
-
-      {/* 2. Banner de Actualización de Flota Disponible */}
+      {/* 1. Banner de Actualización de Flota Disponible */}
       {swUpdateAvailable && (
         <aside
           role="region"

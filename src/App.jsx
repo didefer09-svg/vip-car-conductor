@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { FleetProvider } from './components/FleetContext';
 import { PWAProvider } from './context/PWAContext';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import OfflineBanner from './components/OfflineBanner';
 import DriverHome from './components/DriverHome';
 import CheckIn from './components/CheckIn';
 import CheckOut from './components/CheckOut';
@@ -13,6 +14,9 @@ export default function App() {
       <FleetProvider>
         <BrowserRouter>
           <div className="min-h-screen bg-[#040506] text-[#9c9c9d] antialiased flex justify-center selection:bg-[#ff6363] selection:text-white relative">
+            {/* Banner de alerta discreta cuando se pierde la conexión */}
+            <OfflineBanner />
+
             <main className="w-full max-w-md min-h-screen p-4 sm:p-5 pb-8 flex flex-col">
               <Routes>
                 <Route path="/" element={<Navigate to="/conductor" replace />} />

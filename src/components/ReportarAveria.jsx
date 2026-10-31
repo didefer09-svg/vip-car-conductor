@@ -362,11 +362,11 @@ export default function ReportarAveria() {
         <div className="sticky bottom-4 z-10 space-y-2 backdrop-blur-md pt-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <a
-              href="tel:983592452"
+              href="tel:920738888"
               className="w-full py-4 px-4 rounded-2xl sm:rounded-full bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white font-mono font-bold text-xs sm:text-sm shadow-xl border border-emerald-400/40 flex items-center justify-center gap-2 active:scale-98 cursor-pointer no-underline transition-all leading-relaxed"
             >
               <PhoneCall className="w-4 h-4 animate-bounce" />
-              <span>Llamada Directa (983592452)</span>
+              <span>Llamada Directa (920738888)</span>
             </a>
 
             <button

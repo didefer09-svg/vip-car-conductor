@@ -337,7 +337,7 @@ export default function DriverHome() {
         {/* Botón SOS Cápsula con llamada telefónica directa */}
         <div className="space-y-2">
           <a
-            href="tel:983592452"
+            href="tel:920738888"
             className="w-full flex items-center justify-between p-4 px-6 rounded-full bg-gradient-to-r from-[#e11d48] to-[#be123c] hover:from-[#ff6363] hover:to-[#e11d48] text-white shadow-xl transition-all min-h-[60px] active:scale-98 border border-white/20 cursor-pointer no-underline group"
           >
             <div className="flex items-center gap-3">
@@ -350,7 +350,7 @@ export default function DriverHome() {
                 </div>
                 <div className="text-[10px] text-white/90 flex items-center gap-1.5">
                   <PhoneCall className="w-3 h-3 text-emerald-400" />
-                  <span>Llamada directa de auxilio (983592452) y soporte 24/7</span>
+                  <span>Llamada directa de auxilio (920738888) y soporte 24/7</span>
                 </div>
               </div>
             </div>
